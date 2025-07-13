@@ -1,18 +1,33 @@
-import './App.css'
+import { useState } from "react";
+import { ChatWindow } from "./components/ChatWindow";
+import { InputPanel } from "./components/InputPanel";
+import { sendQuestion } from "./services/api";
 
-function App() {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-foreground mb-4">
-          Welcome to QnA
-        </h1>
-        <p className="text-muted-foreground">
-          Your React app is ready to go!
-        </p>
-      </div>
-    </div>
-  )
+interface message {
+  role: "user" | "assistant";
+  content: string;
 }
 
-export default App
+function App() {
+  const [messages, setMessages] = useState<message[]>([]);
+
+  const handleSend = async (text: string) => {
+    if (!text.trim()) return;
+
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
+
+    const result = await sendQuestion(text);
+    const responseData = await result.json();
+    setMessages((prev) => [...prev, { role: "assistant", content: responseData.answer || "No response" }]);
+  };
+
+  return (
+    <div className="max-w-xl mx-auto mt-10">
+      <h1 className="text-2xl font-bold mb-4">🧠 QnA Chatbot</h1>
+      <ChatWindow messages={messages} />
+      <InputPanel onSend={handleSend} />
+    </div>
+  );
+}
+
+export default App;
