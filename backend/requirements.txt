@@ -1,0 +1,37 @@
+# 🧠 Core LLMs + LangChain
+openai
+langchain
+langchain-core
+langchain-community
+langchain-openai
+langchain-chroma
+langchain-text-splitters
+
+# 🧩 Vector Store (ChromaDB)
+chromadb
+Chroma
+chroma-hnswlib
+
+# 🧠 LangGraph (Multi-agent flow)
+langgraph
+langgraph-checkpoint
+langsmith
+
+# 📚 Data handling
+pandas
+numpy
+pypdf
+
+# 🧪 API + Backend
+fastapi
+uvicorn
+
+# 📦 Configs & Core
+PyYAML
+pydantic
+pydantic_core
+pyprojroot
+python-dotenv
+
+# 🧪 Optional (if needed for notebooks)
+ipykernel
