@@ -1,41 +1,47 @@
 # QnA
 
 QnA/
-├── backend/                # FastAPI app with GPT, LangChain, SQL, RAG
-│   ├── main.py             # FastAPI entry point
-│   ├── requirements.txt    # Python dependencies
-│   ├── .env                # API keys (OpenAI, etc.)
-│   ├── router/             # API routes
-│   │   └── qna.py          # /ask endpoint logic
-│   ├── services/           # LangChain / GPT / SQL / RAG logic
-│   │   ├── sql_agent.py
-│   │   ├── csv_agent.py
-│   │   └── rag_engine.py
-│   ├── data/               # Data files and dbs
+├── backend/                    # Backend with FastAPI + GPT + LangChain + SQL
+│   ├── main.py                 # FastAPI entry point
+│   ├── requirements.txt        # Python dependencies
+│   ├── .env                    # API keys (OpenAI, etc.)
+│
+│   ├── router/                 # API routes
+│   │   └── qna.py              # /ask, /upload, etc.
+│
+│   ├── services/               # GPT/LangChain/RAG core logic
+│   │   ├── sql_agent.ipynb     # SQL agent logic (Jupyter)
+│   │   ├── csv_agent.ipynb     # CSV agent logic (Jupyter)
+│   │   └── rag_engine.ipynb    # RAG + vector search (Jupyter)
+│
+│   ├── data/                   # Data files and DBs
 │   │   ├── chinook.db
 │   │   ├── csv_files/
-│   │   └── vectordb/       # ChromaDB or FAISS
-│   ├── utils/              # Helper utilities
+│   │   └── vectordb/           # ChromaDB / FAISS store
+│
+│   ├── utils/                  # Utilities and LLM configs
 │   │   └── llm_config.py
-│   └── notebooks/          # Jupyter notebooks for development
+│
+│   └── notebooks/              # Dev and debug notebooks
 │       ├── test_sql.ipynb
-│       └── run_gpt.ipynb
+│       ├── run_rag.ipynb
+│       └── playground.ipynb
 
-├── frontend/               # React + Vite (TypeScript)
+├── frontend/                   # React + Vite (TypeScript)
 │   ├── public/
 │   ├── src/
-│   │   ├── components/     # ChatBox, FileUpload, etc.
+│   │   ├── components/         # ChatBox, FileUpload, etc.
 │   │   ├── pages/
-│   │   ├── services/       # API calls to backend
+│   │   ├── services/           # API service layer
 │   │   │   └── api.ts
 │   │   └── App.tsx
-│   ├── .env                # VITE_BACKEND_URL
+│   ├── .env                    # VITE_BACKEND_URL
 │   ├── vite.config.ts
 │   ├── package.json
 │   └── tsconfig.json
 
-├── README.md               # Project documentation
+├── README.md                   # Project documentation
 ├── .gitignore
-└── deployment/             # Optional deploy configs
-    ├── render.yaml         # Render deployment for backend
-    └── vercel.json         # Vercel config for frontend
+└── deployment/                 # Deployment configs (optional)
+    ├── render.yaml             # For backend (Python)
+    └── vercel.json             # For frontend (React + Vite)
