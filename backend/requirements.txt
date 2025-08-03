@@ -6,6 +6,7 @@ langchain-community
 langchain-openai
 langchain-chroma
 langchain-text-splitters
+langchain-experimental
 
 # 🧩 Vector Store (ChromaDB)
 chromadb
@@ -21,10 +22,28 @@ langsmith
 pandas
 numpy
 pypdf
+chardet
+openpyxl
+xlrd
+
+# 📊 Visualization and Analysis
+matplotlib
+seaborn
+plotly
+
+# 🗄️ Database Support
+sqlalchemy
+sqlite3
+
+# 📄 Document Processing
+unstructured
+python-magic
+python-magic-bin
 
 # 🧪 API + Backend
 fastapi
 uvicorn
+python-multipart
 
 # 📦 Configs & Core
 PyYAML
