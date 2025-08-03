@@ -14,7 +14,7 @@ from langchain_community.tools.sql_database.tool import (
     QuerySQLDataBaseTool,
     QuerySQLCheckerTool
 )
-from langchain.agents import create_sql_agent
+from langchain_community.agent_toolkits.sql.base import create_sql_agent
 from langchain.agents.agent_types import AgentType
 from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy import create_engine, text
