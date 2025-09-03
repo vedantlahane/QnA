@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'qna_app',
+    'data_app',
 ]
 
 MIDDLEWARE = [
