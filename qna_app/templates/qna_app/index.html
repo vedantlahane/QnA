@@ -1,0 +1,182 @@
+{% extends 'qna_app/base.html' %}
+
+{% block title %}AI Document Assistant - Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="row align-items-center min-vh-75 py-5">
+        <div class="col-lg-6">
+            <h1 class="display-4 fw-bold text-primary mb-4">
+                Unlock the Power of Your Documents
+            </h1>
+            <p class="lead text-muted mb-4">
+                Transform how you interact with your documents using AI. Upload PDFs, analyze CSV data, 
+                query databases, and get intelligent answers instantly.
+            </p>
+            <div class="d-flex gap-3 mb-4">
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-rocket me-2"></i>Get Started
+                </a>
+                <a href="#features" class="btn btn-outline-primary btn-lg px-4">
+                    <i class="fas fa-info-circle me-2"></i>Learn More
+                </a>
+            </div>
+            
+            <div class="row text-center mt-5">
+                <div class="col-4">
+                    <div class="stats-number text-primary">1000+</div>
+                    <small class="text-muted">Documents Processed</small>
+                </div>
+                <div class="col-4">
+                    <div class="stats-number text-success">50K+</div>
+                    <small class="text-muted">Questions Answered</small>
+                </div>
+                <div class="col-4">
+                    <div class="stats-number text-warning">99.9%</div>
+                    <small class="text-muted">Uptime</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 text-center">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body p-5">
+                    <div class="feature-icon bg-primary text-white mx-auto">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h4 class="card-title">AI-Powered Intelligence</h4>
+                    <p class="card-text text-muted">
+                        Advanced natural language processing to understand your documents 
+                        and provide accurate, contextual answers.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <section id="features" class="py-5">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold">Powerful Features</h2>
+            <p class="lead text-muted">Everything you need to work with documents intelligently</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 text-center">
+                    <div class="card-body p-4">
+                        <div class="feature-icon bg-danger text-white mx-auto">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h5 class="card-title">PDF Analysis</h5>
+                        <p class="card-text text-muted">
+                            Upload and analyze PDF documents. Extract information, 
+                            summarize content, and ask specific questions.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 text-center">
+                    <div class="card-body p-4">
+                        <div class="feature-icon bg-success text-white mx-auto">
+                            <i class="fas fa-table"></i>
+                        </div>
+                        <h5 class="card-title">CSV Data Insights</h5>
+                        <p class="card-text text-muted">
+                            Upload CSV files and query your data using natural language. 
+                            Get insights without writing complex formulas.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 text-center">
+                    <div class="card-body p-4">
+                        <div class="feature-icon bg-info text-white mx-auto">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <h5 class="card-title">Database Queries</h5>
+                        <p class="card-text text-muted">
+                            Connect your SQL databases and query them using plain English. 
+                            No SQL knowledge required.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100 text-center">
+                    <div class="card-body p-4">
+                        <div class="feature-icon bg-warning text-white mx-auto">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <h5 class="card-title">Web Search</h5>
+                        <p class="card-text text-muted">
+                            Get current information from the internet when your documents 
+                            don't have the answers you need.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-5 bg-light rounded-3 my-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-5 fw-bold">How It Works</h2>
+                <p class="lead text-muted">Simple steps to get started</p>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-4 text-center">
+                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <span class="fs-3 fw-bold">1</span>
+                    </div>
+                    <h5 class="mt-3">Upload Documents</h5>
+                    <p class="text-muted">Upload your PDFs, CSV files, or SQL databases securely to our platform.</p>
+                </div>
+                
+                <div class="col-md-4 text-center">
+                    <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <span class="fs-3 fw-bold">2</span>
+                    </div>
+                    <h5 class="mt-3">Ask Questions</h5>
+                    <p class="text-muted">Use natural language to ask questions about your documents or general topics.</p>
+                </div>
+                
+                <div class="col-md-4 text-center">
+                    <div class="rounded-circle bg-info text-white d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <span class="fs-3 fw-bold">3</span>
+                    </div>
+                    <h5 class="mt-3">Get Answers</h5>
+                    <p class="text-muted">Receive intelligent, accurate answers powered by advanced AI technology.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="text-center py-5">
+        <div class="card bg-primary text-white">
+            <div class="card-body p-5">
+                <h2 class="card-title">Ready to Transform Your Document Workflow?</h2>
+                <p class="card-text lead">Join thousands of users who are already experiencing the power of AI-driven document analysis.</p>
+                <div class="d-flex justify-content-center gap-3 mt-4">
+                    <a href="{% url 'qna_app:register' %}" class="btn btn-light btn-lg px-4">
+                        <i class="fas fa-user-plus me-2"></i>Sign Up Free
+                    </a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-4">
+                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
