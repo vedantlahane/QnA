@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QnA Chat</title>
+    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap)" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
@@ -19,56 +20,53 @@
         </nav>
     </header>
     
-    <main class="chat-container">
-        <div class="chat-header">
-            <h2>Ask Questions About Your Documents</h2>
-            <p>Upload a file first, then ask questions about its content.</p>
-        </div>
-        
-        <div class="chat-messages" id="chatMessages">
-            {% for convo in conversations %}
-                <div class="message-group">
-                    <div class="message user-message">
-                        <div class="message-header">
-                            <strong>You</strong>
-                            <span class="timestamp">{{ convo.timestamp|date:"M d, Y H:i" }}</span>
+    <main class="container">
+        <div class="card chat-container">
+            <div class="chat-header">
+                <h2>Ask Questions About Your Documents</h2>
+                <p>Upload a file first, then ask questions about its content.</p>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                {% for convo in conversations %}
+                    <div class="message-group">
+                        <div class="message user-message">
+                            <div class="message-header">
+                                <strong>You</strong>
+                                <span class="timestamp">{{ convo.timestamp|date:"M d, Y H:i" }}</span>
+                            </div>
+                            <div class="message-content">{{ convo.question }}</div>
                         </div>
-                        <div class="message-content">{{ convo.question }}</div>
-                    </div>
-                    <div class="message bot-message">
-                        <div class="message-header">
-                            <strong>Assistant</strong>
-                            {% if convo.source_file %}
-                                <span class="source-file">Source: {{ convo.source_file.file.name }}</span>
-                            {% endif %}
+                        <div class="message bot-message">
+                            <div class="message-header">
+                                <strong>Assistant</strong>
+                                {% if convo.source_file %}
+                                    <span class="source-file">Source: {{ convo.source_file.file.name }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="message-content">{{ convo.answer|linebreaks }}</div>
                         </div>
-                        <div class="message-content">{{ convo.answer|linebreaks }}</div>
                     </div>
-                </div>
-            {% empty %}
-                <div class="no-messages">
-                    <p>No conversations yet. Start by asking a question!</p>
-                </div>
-            {% endfor %}
-        </div>
-        
-        <div class="chat-input-container">
-            <form class="chat-form" id="chatForm">
-                {% csrf_token %}
-                <div class="input-group">
-                    <input type="text" name="question" placeholder="Ask a question about your uploaded document..." required class="chat-input" id="questionInput">
-                    <button type="submit" class="chat-submit" id="chatSubmit">
+                {% empty %}
+                    <div class="no-messages">
+                        <p>No conversations yet. Start by asking a question!</p>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <div class="chat-input-container">
+                <form method="post" class="chat-form" id="chatForm">
+                    {% csrf_token %}
+                    <input type="text" name="question" placeholder="Ask a question..." required class="chat-input" id="questionInput">
+                    <button type="submit" class="btn btn-primary chat-submit">
                         <span>Send</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="m5 12 14 0"></path>
                             <path d="m12 5 7 7-7 7"></path>
                         </svg>
                     </button>
-                </div>
-                <div class="loading-indicator" id="loadingIndicator" style="display: none; margin-top: 1rem; color: #666;">
-                    <span>Assistant is thinking...</span>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </main>
     
@@ -77,106 +75,10 @@
     </footer>
     
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const chatForm = document.getElementById('chatForm');
-            const questionInput = document.getElementById('questionInput');
-            const chatSubmit = document.getElementById('chatSubmit');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const chatMessages = document.getElementById('chatMessages');
-
-            // Get CSRF token
-            function getCSRFToken() {
-                return document.querySelector('[name=csrfmiddlewaretoken]').value;
-            }
-
-            // Add new message to chat
-            function addMessage(question, answer) {
-                const messageGroup = document.createElement('div');
-                messageGroup.className = 'message-group';
-                
-                const now = new Date();
-                const timestamp = now.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-
-                messageGroup.innerHTML = `
-                    <div class="message user-message">
-                        <div class="message-header">
-                            <strong>You</strong>
-                            <span class="timestamp">${timestamp}</span>
-                        </div>
-                        <div class="message-content">${question}</div>
-                    </div>
-                    <div class="message bot-message">
-                        <div class="message-header">
-                            <strong>Assistant</strong>
-                        </div>
-                        <div class="message-content">${answer.replace(/\n/g, '<br>')}</div>
-                    </div>
-                `;
-
-                // Remove "no messages" placeholder if it exists
-                const noMessages = chatMessages.querySelector('.no-messages');
-                if (noMessages) {
-                    noMessages.remove();
-                }
-
-                chatMessages.appendChild(messageGroup);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            // Handle chat form submission
-            chatForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const question = questionInput.value.trim();
-                if (!question) return;
-
-                // Disable form and show loading
-                chatSubmit.disabled = true;
-                loadingIndicator.style.display = 'block';
-                questionInput.disabled = true;
-
-                try {
-                    const response = await fetch('/api/ask/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCSRFToken(),
-                        },
-                        body: JSON.stringify({ question: question })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.status === 'success') {
-                        addMessage(question, data.answer);
-                        questionInput.value = '';
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('An error occurred while sending your message.');
-                } finally {
-                    // Re-enable form and hide loading
-                    chatSubmit.disabled = false;
-                    loadingIndicator.style.display = 'none';
-                    questionInput.disabled = false;
-                    questionInput.focus();
-                }
-            });
-
-            // Auto-scroll to bottom of chat messages on page load
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            // Focus on input field
-            questionInput.focus();
-        });
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        document.getElementById('questionInput').focus();
     </script>
 </body>
 </html>

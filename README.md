@@ -8,6 +8,7 @@
 │   ├── urls.py
 │   ├── forms.py
 │   └── templates/
+|       |--- index.html
 │       ├── chat.html
 │       └── upload.html
 ├── data_app/
