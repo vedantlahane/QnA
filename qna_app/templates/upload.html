@@ -26,7 +26,7 @@
         </div>
         
         <div class="upload-form-container">
-            <form method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+            <form enctype="multipart/form-data" class="upload-form" id="uploadForm">
                 {% csrf_token %}
                 
                 <div class="file-upload-area" id="fileUploadArea">
@@ -61,6 +61,10 @@
                     </div>
                 </button>
             </form>
+            
+            <div class="upload-status" id="uploadStatus" style="display: none; margin-top: 1rem; padding: 1rem; border-radius: 8px;">
+                <p id="statusMessage"></p>
+            </div>
         </div>
         
         <div class="upload-instructions">
@@ -99,90 +103,154 @@
     </footer>
     
     <script>
-        const fileInput = document.querySelector('input[type="file"]');
-        const uploadArea = document.getElementById('fileUploadArea');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const uploadButton = document.getElementById('uploadButton');
-        const removeFile = document.getElementById('removeFile');
-        const uploadForm = document.getElementById('uploadForm');
-        
-        // File drag and drop functionality
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFileSelect(files[0]);
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.querySelector('input[type="file"]');
+            const uploadArea = document.getElementById('fileUploadArea');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const uploadButton = document.getElementById('uploadButton');
+            const removeFile = document.getElementById('removeFile');
+            const uploadForm = document.getElementById('uploadForm');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const statusMessage = document.getElementById('statusMessage');
+
+            // Get CSRF token
+            function getCSRFToken() {
+                return document.querySelector('[name=csrfmiddlewaretoken]').value;
             }
-        });
-        
-        uploadArea.addEventListener('click', () => {
-            fileInput.click();
-        });
-        
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFileSelect(e.target.files[0]);
+
+            // Show status message
+            function showStatus(message, isError = false) {
+                statusMessage.textContent = message;
+                uploadStatus.style.display = 'block';
+                uploadStatus.style.backgroundColor = isError ? '#fee' : '#efe';
+                uploadStatus.style.color = isError ? '#c33' : '#363';
+                uploadStatus.style.border = isError ? '1px solid #fcc' : '1px solid #cfc';
             }
-        });
-        
-        removeFile.addEventListener('click', () => {
-            fileInput.value = '';
-            fileInfo.style.display = 'none';
-            uploadArea.style.display = 'block';
-            uploadButton.disabled = true;
-        });
-        
-        function handleFileSelect(file) {
-            const maxSize = 10 * 1024 * 1024; // 10MB
-            const allowedTypes = ['application/pdf', 'text/csv', 'application/vnd.ms-excel'];
+
+            // File drag and drop functionality
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
             
-            if (file.size > maxSize) {
-                alert('File size must be less than 10MB');
-                return;
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelect(files[0]);
+                }
+            });
+            
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+            
+            removeFile.addEventListener('click', () => {
+                fileInput.value = '';
+                fileInfo.style.display = 'none';
+                uploadArea.style.display = 'block';
+                uploadButton.disabled = true;
+                uploadStatus.style.display = 'none';
+            });
+            
+            function handleFileSelect(file) {
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                const allowedTypes = ['application/pdf', 'text/csv', 'application/vnd.ms-excel'];
+                
+                if (file.size > maxSize) {
+                    showStatus('File size must be less than 10MB', true);
+                    return;
+                }
+                
+                if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
+                    showStatus('Please select a PDF or CSV file', true);
+                    return;
+                }
+                
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                
+                uploadArea.style.display = 'none';
+                fileInfo.style.display = 'flex';
+                uploadButton.disabled = false;
+                uploadStatus.style.display = 'none';
             }
             
-            if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
-                alert('Please select a PDF or CSV file');
-                return;
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
             
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
-            
-            uploadArea.style.display = 'none';
-            fileInfo.style.display = 'flex';
-            uploadButton.disabled = false;
-        }
-        
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        
-        // Form submission handling
-        uploadForm.addEventListener('submit', (e) => {
-            const buttonText = document.querySelector('.button-text');
-            const loadingSpinner = document.querySelector('.loading-spinner');
-            
-            buttonText.style.display = 'none';
-            loadingSpinner.style.display = 'block';
-            uploadButton.disabled = true;
+            // Form submission handling with AJAX
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const file = fileInput.files[0];
+                if (!file) return;
+
+                const buttonText = document.querySelector('.button-text');
+                const loadingSpinner = document.querySelector('.loading-spinner');
+                
+                // Show loading state
+                buttonText.style.display = 'none';
+                loadingSpinner.style.display = 'block';
+                uploadButton.disabled = true;
+                uploadStatus.style.display = 'none';
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const response = await fetch('/api/upload/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCSRFToken(),
+                        },
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        showStatus('File uploaded and processed successfully! You can now go to the Chat page to ask questions.');
+                        // Reset form after successful upload
+                        setTimeout(() => {
+                            fileInput.value = '';
+                            fileInfo.style.display = 'none';
+                            uploadArea.style.display = 'block';
+                            uploadButton.disabled = true;
+                        }, 2000);
+                    } else {
+                        showStatus('Error: ' + data.message, true);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showStatus('An error occurred while uploading the file.', true);
+                } finally {
+                    // Reset button state
+                    buttonText.style.display = 'inline';
+                    loadingSpinner.style.display = 'none';
+                    uploadButton.disabled = false;
+                }
+            });
         });
     </script>
 </body>

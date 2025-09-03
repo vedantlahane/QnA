@@ -115,6 +115,7 @@
             font-weight: 700;
             margin-bottom: 1rem;
             background: linear-gradient(to right, var(--primary), var(--primary-dark));
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -420,9 +421,9 @@
         <h1>QnA Platform</h1>
         <nav>
             <ul>
-                <li><a href="#" data-page="home" class="active">Home</a></li>
-                <li><a href="#" data-page="chat">Chat</a></li>
-                <li><a href="#" data-page="upload">Upload</a></li>
+                <li><a href="{% url 'home' %}" class="active">Home</a></li>
+                <li><a href="{% url 'chat' %}">Chat</a></li>
+                <li><a href="{% url 'upload' %}">Upload</a></li>
             </ul>
         </nav>
     </header>
@@ -433,100 +434,8 @@
                 <h2>Welcome to Your AI Assistant</h2>
                 <p>Unlock the power of your documents with AI. Upload files, ask questions, and get instant answers.</p>
                 <div class="flex-center" style="display: flex; justify-content: center; gap: 1rem;">
-                    <a href="#" data-page="upload" class="btn btn-primary">Get Started</a>
-                    <a href="#" data-page="chat" class="btn btn-secondary">Go to Chat</a>
-                </div>
-            </div>
-        </section>
-
-        <section id="chat-page" class="page-section">
-            <div class="card">
-                <div class="chat-header">
-                    <h2>Chat with Your Documents</h2>
-                    <p>Ask questions about your uploaded PDFs, SQL data, or CSV files.</p>
-                </div>
-                
-                <div class="chat-messages">
-                    {% for convo in conversations %}
-                        <div class="message-group">
-                            <div class="message user-message">
-                                <div class="message-header">
-                                    <strong>You</strong>
-                                    <span class="timestamp">{{ convo.timestamp|date:"M d, Y H:i" }}</span>
-                                </div>
-                                <div class="message-content">{{ convo.question }}</div>
-                            </div>
-                            <div class="message bot-message">
-                                <div class="message-header">
-                                    <strong>Assistant</strong>
-                                    {% if convo.source_file %}
-                                        <span class="source-file">Source: {{ convo.source_file.file.name }}</span>
-                                    {% endif %}
-                                </div>
-                                <div class="message-content">{{ convo.answer|linebreaks }}</div>
-                            </div>
-                        </div>
-                    {% empty %}
-                        <div class="no-messages">
-                            <p>No conversations yet. Upload a file to begin.</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-            
-            <div class="chat-input-container">
-                <form method="post" class="chat-form">
-                    {% csrf_token %}
-                    <input type="text" name="question" placeholder="Ask a question..." required class="chat-input">
-                    <button type="submit" class="btn btn-primary">
-                        <span>Send</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m5 12 14 0"></path>
-                            <path d="m12 5 7 7-7 7"></path>
-                        </svg>
-                    </button>
-                </form>
-            </div>
-        </section>
-        
-        <section id="upload-page" class="page-section">
-            <div class="card">
-                <h2>Upload Documents</h2>
-                <p class="text-center">Upload PDF, CSV, or SQL files to enable the AI to answer your questions.</p>
-                <div class="upload-form-container">
-                    <form method="post" enctype="multipart/form-data" id="uploadForm">
-                        {% csrf_token %}
-                        <div class="file-upload-area" id="fileUploadArea">
-                            <div class="upload-icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7,10 12,15 17,10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                            </div>
-                            <h3>Drag and drop your file here</h3>
-                            <p>or click to browse</p>
-                            <small>Supported formats: PDF, CSV, SQL (Max size: 10MB)</small>
-                            {{ form.file }}
-                        </div>
-                        
-                        <div class="file-info-container" id="fileInfoContainer" style="display: none;">
-                            <div class="file-info" id="fileInfo">
-                                <div class="file-details">
-                                    <div class="file-icon">📄</div>
-                                    <div class="file-name" id="fileName"></div>
-                                    <div class="file-size" id="fileSize"></div>
-                                </div>
-                                <button type="button" class="remove-file" id="removeFile">×</button>
-                            </div>
-                            <button type="submit" class="btn btn-primary upload-submit" id="uploadButton" disabled>
-                                <span class="button-text">Upload and Process</span>
-                                <div class="loading-spinner" style="display: none;">
-                                    <div class="spinner"></div>
-                                </div>
-                            </button>
-                        </div>
-                    </form>
+                    <a href="{% url 'upload' %}" class="btn btn-primary">Get Started</a>
+                    <a href="{% url 'chat' %}" class="btn btn-secondary">Go to Chat</a>
                 </div>
             </div>
         </section>
@@ -537,136 +446,9 @@
     </footer>
 
     <script>
+        // Simple home page - no SPA navigation needed since we're using Django routes
         document.addEventListener('DOMContentLoaded', () => {
-            // --- SPA Navigation ---
-            const navLinks = document.querySelectorAll('nav a');
-            const sections = document.querySelectorAll('.page-section');
-            const currentPage = window.location.pathname.replace(/\//g, '') || 'home';
-
-            function showPage(pageId) {
-                sections.forEach(section => {
-                    section.classList.remove('active');
-                });
-                navLinks.forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('data-page') === pageId) {
-                        link.classList.add('active');
-                    }
-                });
-                const activeSection = document.getElementById(pageId + '-page');
-                if (activeSection) {
-                    activeSection.classList.add('active');
-                }
-            }
-
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const pageId = e.target.getAttribute('data-page');
-                    if (pageId) {
-                        showPage(pageId);
-                    }
-                });
-            });
-
-            // Initial page load
-            showPage(currentPage || 'home');
-
-            // --- Chat Page Logic ---
-            const chatMessages = document.querySelector('#chat-page .chat-messages');
-            if (chatMessages) {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-            
-            // --- Upload Page Logic ---
-            const fileInput = document.querySelector('input[type="file"]');
-            const uploadArea = document.getElementById('fileUploadArea');
-            const fileInfoContainer = document.getElementById('fileInfoContainer');
-            const fileInfo = document.getElementById('fileInfo');
-            const fileName = document.getElementById('fileName');
-            const fileSize = document.getElementById('fileSize');
-            const uploadButton = document.getElementById('uploadButton');
-            const removeFile = document.getElementById('removeFile');
-            const uploadForm = document.getElementById('uploadForm');
-
-            if (uploadArea && fileInput) {
-                const handleFileSelect = (file) => {
-                    const maxSize = 10 * 1024 * 1024; // 10MB
-                    const allowedExtensions = ['.pdf', '.csv', '.sql'];
-                    const fileExtension = file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2);
-                    
-                    if (file.size > maxSize) {
-                        alert('File size must be less than 10MB.');
-                        return;
-                    }
-                    
-                    if (!allowedExtensions.includes(`.${fileExtension.toLowerCase()}`)) {
-                        alert('Please select a PDF, CSV, or SQL file.');
-                        return;
-                    }
-                    
-                    fileName.textContent = file.name;
-                    fileSize.textContent = formatFileSize(file.size);
-                    
-                    uploadArea.style.display = 'none';
-                    fileInfoContainer.style.display = 'block';
-                    uploadButton.disabled = false;
-                };
-
-                const formatFileSize = (bytes) => {
-                    if (bytes === 0) return '0 Bytes';
-                    const k = 1024;
-                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                };
-
-                uploadArea.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.add('dragover');
-                });
-                
-                uploadArea.addEventListener('dragleave', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.remove('dragover');
-                });
-                
-                uploadArea.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        fileInput.files = files;
-                        handleFileSelect(files[0]);
-                    }
-                });
-                
-                uploadArea.addEventListener('click', () => {
-                    fileInput.click();
-                });
-                
-                fileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        handleFileSelect(e.target.files[0]);
-                    }
-                });
-                
-                removeFile.addEventListener('click', () => {
-                    fileInput.value = '';
-                    fileInfoContainer.style.display = 'none';
-                    uploadArea.style.display = 'block';
-                    uploadButton.disabled = true;
-                });
-                
-                uploadForm.addEventListener('submit', () => {
-                    const buttonText = uploadButton.querySelector('.button-text');
-                    const loadingSpinner = uploadButton.querySelector('.loading-spinner');
-                    
-                    buttonText.style.display = 'none';
-                    loadingSpinner.style.display = 'flex';
-                    uploadButton.disabled = true;
-                });
-            }
+            console.log('QnA Platform loaded successfully');
         });
     </script>
 </body>

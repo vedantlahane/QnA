@@ -19,6 +19,29 @@ def home(request):
     return render(request, 'index.html', context)
 
 
+def chat_page(request):
+    """
+    Renders the chat page with conversation history.
+    """
+    conversations = Conversation.objects.all().order_by("-timestamp")
+    context = {
+        'conversations': conversations,
+        'current_page': 'chat'
+    }
+    return render(request, 'chat.html', context)
+
+
+def upload_page(request):
+    """
+    Renders the upload page with the file upload form.
+    """
+    context = {
+        'form': UploadFileForm(),
+        'current_page': 'upload'
+    }
+    return render(request, 'upload.html', context)
+
+
 @csrf_exempt
 def upload_file(request):
     """
