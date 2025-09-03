@@ -7,44 +7,58 @@ from langchain_core.tools import tool
 from langchain.chains import RetrievalQA
 from langchain_openai import ChatOpenAI
 
+# NOTE: This is a conceptual import. You'll need to ensure your
+# LoadToolsConfig class is accessible from this file.
+from data_app.agent_core.config import LoadToolsConfig
 
+# --- Configuration Loading ---
+# This assumes LoadToolsConfig exists and loads settings from your
+# tools_config.yml file.
+TOOLS_CFG = LoadToolsConfig()
 
-
-def process_and_vectorize(file_path:str , file_id:int):
+# --- Part 1: File Processing Logic ---
+def process_and_vectorize(file_path: str, file_id: int):
     """
-    Loads a PDF file, splits its content into manageble chunks, generates embeddings from these chunks, and stores them in a FAISS vector store.
+    Loads a PDF, splits it into chunks, and saves the embeddings to a FAISS vector database.
     
     Args:
-        file_path (str) : The path to the PDF file to be processed.
-        file_id (int) : The unique identifier for the file, used to name the FAISS index file.
+        file_path (str): The full path to the uploaded PDF file.
+        file_id (int): The unique ID of the uploaded file, used to name the vector DB.
     """
-
     try:
+        # Load the PDF document
         loader = PyPDFLoader(file_path)
-        documents  = loader.load()
+        documents = loader.load()
 
+        # Split the document into smaller chunks
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size = 500,
-            chunk_overlap = 50
+            chunk_size=TOOLS_CFG.pdf_rag_chunk_size,
+            chunk_overlap=TOOLS_CFG.pdf_rag_chunk_overlap
         )
-
         docs = text_splitter.split_documents(documents)
 
+        # Generate embeddings using OpenAI
         embeddings = OpenAIEmbeddings(
-            model = "text-embedding-3-large"
+            model=TOOLS_CFG.pdf_rag_embedding_model
         )
 
-        vector_store = FAISS.from_documents( docs, embeddings)
+        # Create the FAISS vector store
+        vector_store = FAISS.from_documents(docs, embeddings)
 
+        # Save the vector store locally with a unique name
+        # The 'allow_dangerous_deserialization' is necessary for loading
+        # a vectorstore from disk in later versions of LangChain.
         vector_store.save_local(f"data/faiss_index_{file_id}")
-
-        print(f"PDF file with ID {file_id} processed and vectorized")
-
+        
+        print(f"PDF file with ID {file_id} processed and vectorized.")
+        
     except Exception as e:
         print(f"Error processing PDF file: {e}")
+        # You can add error handling here, like logging or returning a status
 
+# --- Part 2: Agent Tool ---
 @tool
-def answer_questions_on_pdf(query: str, file_id: int) ->str:
+def answer_question_on_pdf(query: str, file_id: int) -> str:
     """
     Answers a question by searching a specific PDF's vector database.
     This tool is used for queries that require information from a previously
@@ -55,36 +69,35 @@ def answer_questions_on_pdf(query: str, file_id: int) ->str:
         file_id (int): The ID of the specific PDF file to search within.
         
     Returns:
-        
+        str: The generated answer from the LLM.
     """
-    
-
     try:
+        # Load the saved FAISS vector store for the specific file
         embeddings = OpenAIEmbeddings(
-            model = "text-embeddings=3-large"
+            model=TOOLS_CFG.pdf_rag_embedding_model
         )
-
         vector_store = FAISS.load_local(
-            f"data/faiss_index_(file_id)",
+            f"data/faiss_index_{file_id}",
             embeddings,
-            allow_dangerous_deserialization=True #this 
+            allow_dangerous_deserialization=True
         )
 
+        # Set up a retriever for the RAG chain
         retriever = vector_store.as_retriever(
             search_type="similarity",
-            search_kwargs={"3"}
+            search_kwargs={"k": TOOLS_CFG.pdf_rag_k}
         )
 
+        # Initialize the LLM and the RAG chain
         llm = ChatOpenAI(
-            temperature=1,
-            model="OpenAI-4o-mini"
+            temperature=TOOLS_CFG.pdf_rag_llm_temperature,
+            model=TOOLS_CFG.pdf_rag_llm
         )
+        qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
-        qa_chain = RetrievalQA.from_chain_type(llm = llm, retriever = retriever)
-
-        respond= qa_chain.run(query)
-        return respond
-    
+        # Run the chain to get the answer
+        response = qa_chain.run(query)
+        return response
 
     except Exception as e:
-        return f"Sorry, I could not process your request due to an error: {e}"
+        return f"Sorry, I could not find information on this topic in the specified PDF. Error: {e}"

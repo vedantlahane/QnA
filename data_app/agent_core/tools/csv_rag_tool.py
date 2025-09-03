@@ -7,7 +7,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain_core.tools import tool
-from .config import LoadToolsConfig
+from agent_core.config import LoadToolsConfig
 
 # --- Configuration Loading ---
 TOOLS_CFG = LoadToolsConfig()

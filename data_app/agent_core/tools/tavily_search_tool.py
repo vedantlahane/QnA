@@ -2,7 +2,7 @@
 
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.tools import tool
-from .config import LoadToolsConfig
+from agent_core.config import LoadToolsConfig
 
 # --- Configuration Loading ---
 TOOLS_CFG = LoadToolsConfig()
