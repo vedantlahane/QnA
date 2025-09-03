@@ -1,5 +1,3 @@
-# data_app/agent_core/config.py
-
 import os
 import yaml
 from dotenv import load_dotenv
@@ -32,9 +30,18 @@ class LoadToolsConfig:
             with open(config_path, 'r') as cfg_file:
                 app_config = yaml.safe_load(cfg_file)
 
-            # Set environment variables from .env
-            os.environ['OPENAI_API_KEY'] = os.getenv("OPEN_AI_API_KEY")
-            os.environ['TAVILY_API_KEY'] = os.getenv("TAVILY_API_KEY")
+            # Check for API keys from environment variables and ensure they are not None
+            openai_api_key = os.getenv("OPEN_AI_API_KEY")
+            tavily_api_key = os.getenv("TAVILY_API_KEY")
+            
+            if not openai_api_key:
+                raise ValueError("OPEN_AI_API_KEY is not set in the environment or .env file.")
+            if not tavily_api_key:
+                raise ValueError("TAVILY_API_KEY is not set in the environment or .env file.")
+
+            # Set environment variables from .env if they exist
+            os.environ['OPENAI_API_KEY'] = openai_api_key
+            os.environ['TAVILY_API_KEY'] = tavily_api_key
 
             # --- Primary agent settings ---
             self.primary_agent_llm = app_config["primary_agent"]["llm"]
@@ -60,6 +67,9 @@ class LoadToolsConfig:
             raise
         except KeyError as e:
             print(f"Error: Missing key in tools_config.yml: {e}")
+            raise
+        except ValueError as e:
+            print(f"Configuration error: {e}")
             raise
 
 # Create a single global instance for easy access

@@ -1,0 +1,673 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QnA Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base Styles and Layout */
+        :root {
+            --primary: #6c63ff;
+            --primary-dark: #5b55e3;
+            --secondary: #e8e6ff;
+            --text-dark: #1a202c;
+            --text-light: #4a5568;
+            --bg-light: #f7fafc;
+            --bg-white: #ffffff;
+            --border: #e2e8f0;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background-color: var(--bg-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Global Components --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .card {
+            background-color: var(--bg-white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            transition: var(--transition);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 700;
+            border-radius: var(--radius);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--bg-white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border);
+            transform: translateY(-2px);
+        }
+
+        /* --- Page Sections --- */
+        .page-section {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        .page-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Home Page --- */
+        #home-page {
+            text-align: center;
+            padding-top: 5rem;
+        }
+        
+        #home-page h2 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        #home-page p {
+            font-size: 1.25rem;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        /* --- Upload Page --- */
+        #upload-page h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        #upload-page p.text-center {
+            text-align: center;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        .file-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .file-upload-area:hover,
+        .file-upload-area.dragover {
+            border-color: var(--primary);
+            background-color: var(--secondary);
+        }
+        
+        .file-upload-area input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .file-upload-area .upload-icon {
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+        
+        .file-upload-area h3 {
+            color: var(--text-dark);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .file-upload-area p {
+            color: var(--text-light);
+            margin-bottom: 0.5rem;
+        }
+
+        .file-info-container {
+            display: none;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background-color: var(--bg-light);
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .file-details {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .file-details .file-icon {
+            font-size: 2rem;
+        }
+        
+        .file-details .file-name {
+            font-weight: 700;
+        }
+        
+        .file-details .file-size {
+            color: var(--text-light);
+        }
+
+        .remove-file {
+            background-color: #e53e3e;
+            color: var(--bg-white);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: var(--transition);
+        }
+        
+        .remove-file:hover {
+            background-color: #c53030;
+        }
+
+        .upload-submit {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+            border-radius: var(--radius);
+        }
+
+        .upload-submit:disabled {
+            background-color: var(--border);
+            color: var(--text-light);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .upload-submit .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid var(--bg-white);
+            border-radius: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- Chat Page --- */
+        #chat-page .chat-header h2 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        #chat-page .chat-header p {
+            color: var(--text-light);
+        }
+
+        .chat-messages {
+            max-height: 60vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            background-color: var(--bg-white);
+            box-shadow: var(--shadow);
+        }
+        
+        .message-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .message {
+            padding: 1rem;
+            border-radius: var(--radius);
+        }
+
+        .user-message {
+            background-color: var(--secondary);
+            border-left: 4px solid var(--primary);
+        }
+
+        .bot-message {
+            background-color: var(--bg-light);
+            border-left: 4px solid var(--primary-dark);
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        .message-header strong {
+            color: var(--text-dark);
+        }
+        
+        .message-header .source-file {
+            color: var(--primary);
+            font-style: italic;
+        }
+
+        .no-messages {
+            text-align: center;
+            color: var(--text-light);
+            padding: 2rem;
+        }
+        
+        .chat-input-container {
+            background-color: var(--bg-white);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-top: 1.5rem;
+        }
+
+        .chat-form {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
+        }
+        
+        .chat-submit svg {
+            color: var(--bg-white);
+            transition: var(--transition);
+        }
+
+        .chat-submit:hover svg {
+            transform: translateX(4px);
+        }
+
+        /* --- Footer --- */
+        footer {
+            margin-top: auto;
+            background-color: var(--text-dark);
+            color: var(--bg-white);
+            text-align: center;
+            padding: 1.5rem 0;
+            font-size: 0.875rem;
+        }
+        
+        /* --- Responsive Styles --- */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            nav {
+                margin-top: 1rem;
+            }
+
+            nav ul {
+                gap: 1rem;
+            }
+            
+            #home-page h2 {
+                font-size: 2rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            .chat-form {
+                flex-direction: column;
+            }
+
+            .chat-messages {
+                max-height: 50vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>QnA Platform</h1>
+        <nav>
+            <ul>
+                <li><a href="#" data-page="home" class="active">Home</a></li>
+                <li><a href="#" data-page="chat">Chat</a></li>
+                <li><a href="#" data-page="upload">Upload</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section id="home-page" class="page-section active">
+            <div class="card">
+                <h2>Welcome to Your AI Assistant</h2>
+                <p>Unlock the power of your documents with AI. Upload files, ask questions, and get instant answers.</p>
+                <div class="flex-center" style="display: flex; justify-content: center; gap: 1rem;">
+                    <a href="#" data-page="upload" class="btn btn-primary">Get Started</a>
+                    <a href="#" data-page="chat" class="btn btn-secondary">Go to Chat</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="chat-page" class="page-section">
+            <div class="card">
+                <div class="chat-header">
+                    <h2>Chat with Your Documents</h2>
+                    <p>Ask questions about your uploaded PDFs, SQL data, or CSV files.</p>
+                </div>
+                
+                <div class="chat-messages">
+                    {% for convo in conversations %}
+                        <div class="message-group">
+                            <div class="message user-message">
+                                <div class="message-header">
+                                    <strong>You</strong>
+                                    <span class="timestamp">{{ convo.timestamp|date:"M d, Y H:i" }}</span>
+                                </div>
+                                <div class="message-content">{{ convo.question }}</div>
+                            </div>
+                            <div class="message bot-message">
+                                <div class="message-header">
+                                    <strong>Assistant</strong>
+                                    {% if convo.source_file %}
+                                        <span class="source-file">Source: {{ convo.source_file.file.name }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="message-content">{{ convo.answer|linebreaks }}</div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="no-messages">
+                            <p>No conversations yet. Upload a file to begin.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <form method="post" class="chat-form">
+                    {% csrf_token %}
+                    <input type="text" name="question" placeholder="Ask a question..." required class="chat-input">
+                    <button type="submit" class="btn btn-primary">
+                        <span>Send</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m5 12 14 0"></path>
+                            <path d="m12 5 7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </section>
+        
+        <section id="upload-page" class="page-section">
+            <div class="card">
+                <h2>Upload Documents</h2>
+                <p class="text-center">Upload PDF, CSV, or SQL files to enable the AI to answer your questions.</p>
+                <div class="upload-form-container">
+                    <form method="post" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <div class="upload-icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7,10 12,15 17,10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            </div>
+                            <h3>Drag and drop your file here</h3>
+                            <p>or click to browse</p>
+                            <small>Supported formats: PDF, CSV, SQL (Max size: 10MB)</small>
+                            {{ form.file }}
+                        </div>
+                        
+                        <div class="file-info-container" id="fileInfoContainer" style="display: none;">
+                            <div class="file-info" id="fileInfo">
+                                <div class="file-details">
+                                    <div class="file-icon">📄</div>
+                                    <div class="file-name" id="fileName"></div>
+                                    <div class="file-size" id="fileSize"></div>
+                                </div>
+                                <button type="button" class="remove-file" id="removeFile">×</button>
+                            </div>
+                            <button type="submit" class="btn btn-primary upload-submit" id="uploadButton" disabled>
+                                <span class="button-text">Upload and Process</span>
+                                <div class="loading-spinner" style="display: none;">
+                                    <div class="spinner"></div>
+                                </div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 QnA Platform</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- SPA Navigation ---
+            const navLinks = document.querySelectorAll('nav a');
+            const sections = document.querySelectorAll('.page-section');
+            const currentPage = window.location.pathname.replace(/\//g, '') || 'home';
+
+            function showPage(pageId) {
+                sections.forEach(section => {
+                    section.classList.remove('active');
+                });
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('data-page') === pageId) {
+                        link.classList.add('active');
+                    }
+                });
+                const activeSection = document.getElementById(pageId + '-page');
+                if (activeSection) {
+                    activeSection.classList.add('active');
+                }
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const pageId = e.target.getAttribute('data-page');
+                    if (pageId) {
+                        showPage(pageId);
+                    }
+                });
+            });
+
+            // Initial page load
+            showPage(currentPage || 'home');
+
+            // --- Chat Page Logic ---
+            const chatMessages = document.querySelector('#chat-page .chat-messages');
+            if (chatMessages) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // --- Upload Page Logic ---
+            const fileInput = document.querySelector('input[type="file"]');
+            const uploadArea = document.getElementById('fileUploadArea');
+            const fileInfoContainer = document.getElementById('fileInfoContainer');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const uploadButton = document.getElementById('uploadButton');
+            const removeFile = document.getElementById('removeFile');
+            const uploadForm = document.getElementById('uploadForm');
+
+            if (uploadArea && fileInput) {
+                const handleFileSelect = (file) => {
+                    const maxSize = 10 * 1024 * 1024; // 10MB
+                    const allowedExtensions = ['.pdf', '.csv', '.sql'];
+                    const fileExtension = file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2);
+                    
+                    if (file.size > maxSize) {
+                        alert('File size must be less than 10MB.');
+                        return;
+                    }
+                    
+                    if (!allowedExtensions.includes(`.${fileExtension.toLowerCase()}`)) {
+                        alert('Please select a PDF, CSV, or SQL file.');
+                        return;
+                    }
+                    
+                    fileName.textContent = file.name;
+                    fileSize.textContent = formatFileSize(file.size);
+                    
+                    uploadArea.style.display = 'none';
+                    fileInfoContainer.style.display = 'block';
+                    uploadButton.disabled = false;
+                };
+
+                const formatFileSize = (bytes) => {
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+                
+                uploadArea.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                });
+                
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        fileInput.files = files;
+                        handleFileSelect(files[0]);
+                    }
+                });
+                
+                uploadArea.addEventListener('click', () => {
+                    fileInput.click();
+                });
+                
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        handleFileSelect(e.target.files[0]);
+                    }
+                });
+                
+                removeFile.addEventListener('click', () => {
+                    fileInput.value = '';
+                    fileInfoContainer.style.display = 'none';
+                    uploadArea.style.display = 'block';
+                    uploadButton.disabled = true;
+                });
+                
+                uploadForm.addEventListener('submit', () => {
+                    const buttonText = uploadButton.querySelector('.button-text');
+                    const loadingSpinner = uploadButton.querySelector('.loading-spinner');
+                    
+                    buttonText.style.display = 'none';
+                    loadingSpinner.style.display = 'flex';
+                    uploadButton.disabled = true;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

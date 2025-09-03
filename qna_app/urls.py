@@ -1,9 +1,11 @@
-# qna_app/urls.py
 from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.home, name='home'),  # Add this line
-    path('upload/', views.upload_file, name='upload'),
-    path('chat/', views.chat, name='chat'),
+    # The home view will now render the entire SPA
+    path('', views.home, name='home'),
+    
+    # These are new API endpoints for the front end to interact with
+    path('api/upload/', views.upload_file, name='api_upload'),
+    path('api/ask/', views.ask_question, name='api_ask'),
 ]
