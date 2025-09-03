@@ -7,12 +7,21 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 
 # Directory for FAISS indexes
-INDEX_DIR = "vector_stores"
-os.makedirs(INDEX_DIR, exist_ok=True)
+"""
+it is used to store the vector indexes created from uploaded files
+vector indexes means the numerical representations of the data in the files
+"""
+INDEX_DIR = "vector_stores" # directory to store FAISS indexes
+os.makedirs(INDEX_DIR, exist_ok=True) # create directory if it doesn't exist
 
 # Embeddings + LLM
+"""
+embeddings are numerical representations of text data
+here we use OpenAI's embeddings model to confert text to vectors
+LLM is a large language model, here we use OpenAI's gpt-4o-mini model for generating responses
+"""
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) # temperature=0 for deterministic responses
 
 def process_file(file_path, file_id):
     """Parse and vectorize a file, save FAISS index"""
@@ -24,10 +33,19 @@ def process_file(file_path, file_id):
         text = ""
 
     # Split text into chunks
+    """
+    this splits the text into smaller chunks of 500 characters with an overlap of 50 characters
+    this helps in better context retention when querying the vector store
+    500 characters is a good size for embeddings, balancing context and performance
+    50 characters overlap ensures that important context isn't lost between chunks
+    """
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = splitter.create_documents([text])
 
     # Build FAISS index
+    """
+    this creates a FAISS vector store from the document chunks and their embeddings
+    """
     vectorstore = FAISS.from_documents(docs, embeddings)
     vectorstore.save_local(os.path.join(INDEX_DIR, f"store_{file_id}"))
 
