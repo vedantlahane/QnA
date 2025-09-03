@@ -7,40 +7,19 @@ primary_agent:
   llm_temperature: 0.1
 
 # --- Internet Search Settings ---
+# Tavily API key is loaded from the .env file.
 tavily_search_api:
   tavily_search_max_results: 5
-  search_depth: "advanced"     # basic, advanced
-  include_answer: true         # Include AI-generated answers
-  include_raw_content: false   # Exclude HTML content
-
-# Optional: Different settings for different environments
-environments:
-  development:
-    primary_agent:
-      llm: "gpt-3.5-turbo"  # Cheaper for dev
-  production:
-    primary_agent:
-      llm: "gpt-4o-mini"    # Better quality for prod
-
-# Optional: Configuration constraints
-limits:
-  max_chunk_size: 4000
-  max_overlap_ratio: 0.5
-  max_retrieval_k: 20
-  max_search_results: 10
-
 
 # --- PDF RAG Settings ---
-# Enhanced version with additional options
+# These are used by the pdf_rag_tool to process documents.
 pdf_rag:
   llm: "gpt-4o-mini"
   llm_temperature: 0.1
   embedding_model: "text-embedding-3-small"
   chunk_size: 1000
   chunk_overlap: 200
-  k: 5
-  max_tokens: 1000  # Response length limit
-  timeout: 30       # Query timeout in seconds
+  k: 5 # Number of documents to retrieve for RAG
 
 # --- CSV RAG Settings ---
 # These are used by the csv_rag_tool to process documents.
@@ -57,5 +36,3 @@ csv_rag:
 sql:
   llm: "gpt-4o-mini"
   llm_temperature: 0.1
-
-  
