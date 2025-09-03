@@ -1,14 +1,92 @@
-<h2>QnA Chat</h2>
-<form method="post">
-    {% csrf_token %}
-    <input type="text" name="question" placeholder="Ask a question..." required>
-    <button type="submit">Ask</button>
-</form>
-
-<ul>
-{% for convo in conversations %}
-    <li><b>You:</b> {{ convo.question }}</li>
-    <li><b>Bot:</b> {{ convo.answer }}</li>
-    <hr>
-{% endfor %}
-</ul>
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QnA Chat</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header>
+        <h1>QnA Chat Interface</h1>
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}">Home</a></li>
+                <li><a href="{% url 'chat' %}" class="active">Chat</a></li>
+                <li><a href="{% url 'upload' %}">Upload</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main class="chat-container">
+        <div class="chat-header">
+            <h2>Ask Questions About Your Documents</h2>
+            <p>Upload a file first, then ask questions about its content.</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            {% for convo in conversations %}
+                <div class="message-group">
+                    <div class="message user-message">
+                        <div class="message-header">
+                            <strong>You</strong>
+                            <span class="timestamp">{{ convo.timestamp|date:"M d, Y H:i" }}</span>
+                        </div>
+                        <div class="message-content">{{ convo.question }}</div>
+                    </div>
+                    <div class="message bot-message">
+                        <div class="message-header">
+                            <strong>Assistant</strong>
+                            {% if convo.source_file %}
+                                <span class="source-file">Source: {{ convo.source_file.file.name }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="message-content">{{ convo.answer|linebreaks }}</div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="no-messages">
+                    <p>No conversations yet. Start by asking a question!</p>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <div class="chat-input-container">
+            <form method="post" class="chat-form" id="chatForm">
+                {% csrf_token %}
+                <div class="input-group">
+                    <input type="text" name="question" placeholder="Ask a question about your uploaded document..." required class="chat-input" id="questionInput">
+                    <button type="submit" class="chat-submit">
+                        <span>Send</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m5 12 14 0"></path>
+                            <path d="m12 5 7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 QnA Platform</p>
+    </footer>
+    
+    <script>
+        // Auto-scroll to bottom of chat messages
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Focus on input field
+        document.getElementById('questionInput').focus();
+        
+        // Auto-scroll after form submission
+        document.getElementById('chatForm').addEventListener('submit', function() {
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+        });
+    </script>
+</body>
+</html>

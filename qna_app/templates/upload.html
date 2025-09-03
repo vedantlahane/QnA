@@ -1,6 +1,189 @@
-<h2>Upload File</h2>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Upload</button>
-</form>
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File - QnA</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header>
+        <h1>Upload Documents</h1>
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}">Home</a></li>
+                <li><a href="{% url 'chat' %}">Chat</a></li>
+                <li><a href="{% url 'upload' %}" class="active">Upload</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main class="upload-container">
+        <div class="upload-header">
+            <h2>Upload Your Documents</h2>
+            <p>Upload PDF or CSV files to start asking questions about their content.</p>
+        </div>
+        
+        <div class="upload-form-container">
+            <form method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+                {% csrf_token %}
+                
+                <div class="file-upload-area" id="fileUploadArea">
+                    <div class="upload-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7,10 12,15 17,10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </div>
+                    <div class="upload-text">
+                        <h3>Drag and drop your file here</h3>
+                        <p>or click to browse</p>
+                        <small>Supported formats: PDF, CSV (Max size: 10MB)</small>
+                    </div>
+                    {{ form.file }}
+                </div>
+                
+                <div class="file-info" id="fileInfo" style="display: none;">
+                    <div class="file-details">
+                        <div class="file-icon">📄</div>
+                        <div class="file-name" id="fileName"></div>
+                        <div class="file-size" id="fileSize"></div>
+                    </div>
+                    <button type="button" class="remove-file" id="removeFile">×</button>
+                </div>
+                
+                <button type="submit" class="upload-submit" id="uploadButton" disabled>
+                    <span class="button-text">Upload and Process</span>
+                    <div class="loading-spinner" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                </button>
+            </form>
+        </div>
+        
+        <div class="upload-instructions">
+            <h3>How it works:</h3>
+            <ol>
+                <li>Upload a PDF or CSV file</li>
+                <li>The system will process and analyze your document</li>
+                <li>Go to the Chat page to ask questions about your document</li>
+                <li>Get AI-powered answers based on your document content</li>
+            </ol>
+        </div>
+        
+        <div class="recent-uploads">
+            <h3>Supported File Types:</h3>
+            <div class="file-types">
+                <div class="file-type">
+                    <div class="file-type-icon">📄</div>
+                    <div class="file-type-info">
+                        <h4>PDF Documents</h4>
+                        <p>Text-based PDF files with readable content</p>
+                    </div>
+                </div>
+                <div class="file-type">
+                    <div class="file-type-icon">📊</div>
+                    <div class="file-type-info">
+                        <h4>CSV Files</h4>
+                        <p>Comma-separated values with structured data</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 QnA Platform</p>
+    </footer>
+    
+    <script>
+        const fileInput = document.querySelector('input[type="file"]');
+        const uploadArea = document.getElementById('fileUploadArea');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadButton = document.getElementById('uploadButton');
+        const removeFile = document.getElementById('removeFile');
+        const uploadForm = document.getElementById('uploadForm');
+        
+        // File drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        removeFile.addEventListener('click', () => {
+            fileInput.value = '';
+            fileInfo.style.display = 'none';
+            uploadArea.style.display = 'block';
+            uploadButton.disabled = true;
+        });
+        
+        function handleFileSelect(file) {
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            const allowedTypes = ['application/pdf', 'text/csv', 'application/vnd.ms-excel'];
+            
+            if (file.size > maxSize) {
+                alert('File size must be less than 10MB');
+                return;
+            }
+            
+            if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
+                alert('Please select a PDF or CSV file');
+                return;
+            }
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            
+            uploadArea.style.display = 'none';
+            fileInfo.style.display = 'flex';
+            uploadButton.disabled = false;
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // Form submission handling
+        uploadForm.addEventListener('submit', (e) => {
+            const buttonText = document.querySelector('.button-text');
+            const loadingSpinner = document.querySelector('.loading-spinner');
+            
+            buttonText.style.display = 'none';
+            loadingSpinner.style.display = 'block';
+            uploadButton.disabled = true;
+        });
+    </script>
+</body>
+</html>
