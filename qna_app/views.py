@@ -27,3 +27,6 @@ def chat(request):
         return redirect("chat")
 
     return render(request, "chat.html", {"conversations": conversations})
+
+def home(request):
+    return render(request, 'home.html')  # Or use HttpResponse for a simple message
