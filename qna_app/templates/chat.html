@@ -1,0 +1,14 @@
+<h2>QnA Chat</h2>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="question" placeholder="Ask a question..." required>
+    <button type="submit">Ask</button>
+</form>
+
+<ul>
+{% for convo in conversations %}
+    <li><b>You:</b> {{ convo.question }}</li>
+    <li><b>Bot:</b> {{ convo.answer }}</li>
+    <hr>
+{% endfor %}
+</ul>

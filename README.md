@@ -1,16 +1,21 @@
 QnA/
-├── QnA/                      # Core project folder
-│   ├── settings.py           # Project settings (DB, API keys)
-│   ├── urls.py               # Root URL routing
+├── QnA/
+│   ├── settings.py
+│   ├── urls.py
 │   └── wsgi.py
-├── qna_app/                  # Main app (Q&A logic)
-│   ├── models.py             # Database models
-│   ├── views.py              # Q&A processing logic
-│   ├── urls.py               # App-specific routes
+├── qna_app/
+│   ├── models.py
+│   ├── views.py
+│   ├── urls.py
+│   ├── forms.py
 │   └── templates/
-│       └── chat.html         # Chat UI
-├── data_app/                 # Data handling app
-│   └── management/commands/
-│       └── prepare_db.py     # Custom data command
-├── .env                      # Environment variables
-└── requirements.txt          # Dependencies
+│       ├── chat.html
+│       └── upload.html
+├── data_app/
+│   ├── utils.py       # parse files + vectorize + RAG
+│   └── management/
+│       └── commands/
+│           └── prepare_db.py
+├── media/             # user uploads
+├── .env
+└── requirements.txt

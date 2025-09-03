@@ -5,3 +5,12 @@ from django.db import models
 class UploadedFile(models.MOdel):
     file = models.FileField(upload_to='uploads/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+
+class Conversation(models.Model):
+    question = models.TextField()
+    answer = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    source_file = models.ForeignKey(
+        UploadedFile, null=True, blank=True, on_delete=models.SET_NULL
+    )
