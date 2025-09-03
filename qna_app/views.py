@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.contrib import messages
 from .forms import UploadFileForm
 from .models import Conversation, UploadedFile
 # Corrected import to use the new manager module
@@ -17,10 +18,16 @@ def upload_file(request):
     if request.method == "POST":
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
-            uploaded = form.save()
-            # Call the new function that handles multi-tool processing
-            process_file_for_agent(uploaded.file.path, uploaded.id)
-            return redirect("chat")
+            try:
+                uploaded = form.save()
+                # Call the new function that handles multi-tool processing
+                process_file_for_agent(uploaded.file.path, uploaded.id)
+                messages.success(request, f'File "{uploaded.file.name}" has been successfully uploaded and processed!')
+                return redirect("chat")
+            except Exception as e:
+                messages.error(request, f'Error processing file: {str(e)}')
+        else:
+            messages.error(request, 'Please select a valid file to upload.')
     else:
         form = UploadFileForm()
     return render(request, "upload.html", {"form": form})

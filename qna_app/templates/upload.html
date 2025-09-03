@@ -20,6 +20,17 @@
         </nav>
     </header>
     
+    <!-- Django Messages -->
+    {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
     <main class="container">
         <div class="card upload-container">
             <div class="upload-header">
@@ -38,9 +49,11 @@
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
                         </div>
-                        <h3>Drag and drop your file here</h3>
-                        <p>or click to browse</p>
-                        <small>Supported formats: PDF, CSV, SQL (Max size: 10MB)</small>
+                        <div class="upload-text">
+                            <h3>Drag and drop your file here</h3>
+                            <p>or click to browse</p>
+                            <small>Supported formats: PDF, CSV, SQL (Max size: 10MB)</small>
+                        </div>
                         {{ form.file }}
                     </div>
                     
@@ -61,6 +74,34 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+        
+        <!-- Upload Instructions -->
+        <div class="upload-instructions">
+            <h3>Supported File Types</h3>
+            <div class="supported-types">
+                <div class="file-type">
+                    <div class="file-type-icon">📄</div>
+                    <div class="file-type-info">
+                        <h4>PDF Files</h4>
+                        <p>Extract text and answer questions from PDF documents</p>
+                    </div>
+                </div>
+                <div class="file-type">
+                    <div class="file-type-icon">📊</div>
+                    <div class="file-type-info">
+                        <h4>CSV Files</h4>
+                        <p>Analyze data and answer questions about CSV content</p>
+                    </div>
+                </div>
+                <div class="file-type">
+                    <div class="file-type-icon">🗄️</div>
+                    <div class="file-type-info">
+                        <h4>SQL Files</h4>
+                        <p>Query and analyze SQL database schemas and data</p>
+                    </div>
+                </div>
             </div>
         </div>
     </main>

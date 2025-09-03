@@ -78,9 +78,11 @@ class Manager:
             self._initialize_agent()
 
         inputs = {"messages": [HumanMessage(content=query)]}
+        config = {"configurable": {"thread_id": "default_thread"}}
+        
         try:
             # The agent will dynamically choose the correct tool based on the query
-            response = self._agent_graph.invoke(inputs)
+            response = self._agent_graph.invoke(inputs, config=config)
             
             # The final answer is typically the last message in the agent's response
             last_message = response.get('messages', [])[-1]

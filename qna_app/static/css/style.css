@@ -45,6 +45,46 @@ body {
     transition: var(--transition);
 }
 
+/* Django Messages */
+.messages-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 2rem 0;
+}
+
+.alert {
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    border-radius: var(--radius);
+    font-weight: 500;
+    position: relative;
+    border-left: 4px solid;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #17a2b8;
+    color: #0c5460;
+}
+
 .btn {
     display: inline-flex;
     align-items: center;
@@ -130,6 +170,7 @@ nav a.active {
     font-weight: 700;
     margin-bottom: 1rem;
     background: linear-gradient(to right, var(--primary), var(--primary-dark));
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -322,6 +363,10 @@ nav a.active {
     margin-bottom: 1rem;
 }
 
+.upload-text {
+    text-align: center;
+}
+
 .upload-text h3 {
     color: var(--text-dark);
     font-weight: 700;
@@ -489,6 +534,12 @@ footer {
     header {
         flex-direction: column;
         text-align: center;
+        padding: 1rem;
+    }
+
+    header h1 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
     }
 
     nav {
@@ -497,10 +548,16 @@ footer {
 
     nav ul {
         gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     .container {
         padding: 1rem;
+    }
+
+    .home-section {
+        padding-top: 2rem;
     }
 
     .home-section h2 {
@@ -521,9 +578,18 @@ footer {
 
     .cta-buttons {
         flex-direction: column;
+        align-items: center;
     }
 
     .supported-types {
         grid-template-columns: 1fr;
+    }
+
+    .file-upload-area {
+        padding: 2rem 1rem;
+    }
+
+    .upload-text h3 {
+        font-size: 1.1rem;
     }
 }
