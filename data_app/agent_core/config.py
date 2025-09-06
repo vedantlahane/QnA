@@ -68,7 +68,7 @@ class LoadToolsConfig:
 
             # --- SQL configs ---
             self.sql_llm = app_config["sql"]["llm"]
-            elf.sql_llm_temperature = float(app_config["sql"]["llm_temperature"])
+            self.sql_llm_temperature = float(app_config["sql"]["llm_temperature"])
 
 
             print("Configuration loaded successfully.")
