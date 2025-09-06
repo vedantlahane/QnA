@@ -6,51 +6,20 @@ from typing_extensions import TypedDict
 from langchain_core.messages import ToolMessage
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.prebuilt import ToolNode
 from langgraph.graph import StateGraph, START
 from langchain_openai import ChatOpenAI
-from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.tools import BaseTool
 from .config import LoadToolsConfig
 
 # NOTE: You will need to import your specific tools here from the tools directory
-from .tools import tavily_search_tool, pdf_rag_tool, sql_tool, csv_rag_tool
+from .tools import csv_rag_tool, pdf_rag_tool, sql_tool, tavily_search_tool
 
 # --- State and Tooling Logic ---
 class State(TypedDict):
     """Represents the state structure containing a list of messages.
     """
     messages: Annotated[list, add_messages]
-
-
-class BasicToolNode:
-    """A node that runs the tools requested in the last AIMessage.
-    """
-
-    def __init__(self, tools: List[BaseTool]) -> None:
-        """Initializes the BasicToolNode with available tools.
-        """
-        self.tools_by_name = {tool.name: tool for tool in tools}
-
-    def __call__(self, inputs: dict):
-        """Executes the tools based on the tool calls in the last message.
-        """
-        if messages := inputs.get("messages", []):
-            message = messages[-1]
-        else:
-            raise ValueError("No message found in input")
-        outputs = []
-        for tool_call in message.tool_calls:
-            tool_result = self.tools_by_name[tool_call["name"]].invoke(
-                tool_call["args"]
-            )
-            outputs.append(
-                ToolMessage(
-                    content=json.dumps(tool_result),
-                    name=tool_call["name"],
-                    tool_call_id=tool_call["id"],
-                )
-            )
-        return {"messages": outputs}
 
 
 def route_tools(
@@ -98,7 +67,7 @@ def build_graph(available_tools: List[Any]) -> StateGraph:
 
     # Add the nodes
     graph_builder.add_node("chatbot", chatbot)
-    tool_node = BasicToolNode(tools=available_tools)
+    tool_node = ToolNode(tools=available_tools)
     graph_builder.add_node("tools", tool_node)
 
     # Define the conditional routing from the chatbot

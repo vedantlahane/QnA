@@ -12,7 +12,7 @@ class LoadToolsConfig:
     This ensures that the configuration is loaded only once and is accessible
     throughout the application.
     """
-    _instance = None
+    _instance = None # Singleton instance
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
