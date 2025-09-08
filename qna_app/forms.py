@@ -43,12 +43,11 @@ class FileUploadForm(forms.ModelForm):
         if file.size > max_size:
             raise ValidationError(f"File size must be less than 50MB. Current size: {file.size / (1024*1024):.1f}MB")
         
-        # Check if user can upload more files
-        if self.user and hasattr(self.user, 'profile'):
-            if not self.user.profile.can_upload_file():
-                raise ValidationError(
-                    f"You have reached the maximum limit of {self.user.profile.max_files_per_user} active files."
-                )
+        # Simple file count check (max 10 files per user)
+        if self.user:
+            active_files = UploadedFile.objects.filter(user=self.user, is_active=True).count()
+            if active_files >= 10:
+                raise ValidationError("You have reached the maximum limit of 10 active files.")
         
         return file
     
@@ -80,9 +79,7 @@ class FileUploadForm(forms.ModelForm):
         
         if commit:
             instance.save()
-            # Increment user's file count
-            if hasattr(instance.user, 'profile'):
-                instance.user.profile.increment_file_count()
+            # No need to increment file count without UserProfile
         
         return instance
 
@@ -95,7 +92,7 @@ class ChatForm(forms.Form):
             'class': 'form-control',
             'rows': 3,
             'placeholder': 'Ask me anything about your uploaded documents or general questions...',
-            'id': 'chat-message-input'
+            'id': 'id_message'
         }),
         max_length=2000,
         help_text="Maximum 2000 characters"

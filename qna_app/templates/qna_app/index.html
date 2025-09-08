@@ -1,53 +1,63 @@
 {% extends 'qna_app/base.html' %}
 
-{% block title %}AI Document Assistant - Home{% endblock %}
+{% block title %}AI Assistant{% endblock %}
 
 {% block content %}
-<div class="container">
-    <!-- Hero Section -->
-    <div class="row align-items-center min-vh-75 py-5">
-        <div class="col-lg-6">
-            <h1 class="display-4 fw-bold text-primary mb-4">
-                Unlock the Power of Your Documents
-            </h1>
-            <p class="lead text-muted mb-4">
-                Transform how you interact with your documents using AI. Upload PDFs, analyze CSV data, 
-                query databases, and get intelligent answers instantly.
-            </p>
-            <div class="d-flex gap-3 mb-4">
-                <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-4">
-                    <i class="fas fa-rocket me-2"></i>Get Started
-                </a>
-                <a href="#features" class="btn btn-outline-primary btn-lg px-4">
-                    <i class="fas fa-info-circle me-2"></i>Learn More
-                </a>
-            </div>
-            
-            <div class="row text-center mt-5">
-                <div class="col-4">
-                    <div class="stats-number text-primary">1000+</div>
-                    <small class="text-muted">Documents Processed</small>
-                </div>
-                <div class="col-4">
-                    <div class="stats-number text-success">50K+</div>
-                    <small class="text-muted">Questions Answered</small>
-                </div>
-                <div class="col-4">
-                    <div class="stats-number text-warning">99.9%</div>
-                    <small class="text-muted">Uptime</small>
+<div class="text-center py-5">
+    <h1 class="display-4 mb-4">AI Document Assistant</h1>
+    <p class="lead mb-4">Upload documents and chat with AI about your files</p>
+
+    {% if user.is_authenticated %}
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{% url 'qna_app:chat' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-comments me-2"></i>Start Chat
+            </a>
+            <a href="{% url 'qna_app:upload' %}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-upload me-2"></i>Upload Files
+            </a>
+        </div>
+    {% else %}
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{% url 'login' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-sign-in-alt me-2"></i>Login
+            </a>
+            <a href="{% url 'qna_app:register' %}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-user-plus me-2"></i>Register
+            </a>
+        </div>
+    {% endif %}
+
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                    <h5>PDF Documents</h5>
+                    <p>Upload and analyze PDF files with AI</p>
                 </div>
             </div>
         </div>
-        
-        <div class="col-lg-6 text-center">
-            <div class="card border-0 shadow-lg">
-                <div class="card-body p-5">
-                    <div class="feature-icon bg-primary text-white mx-auto">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <h4 class="card-title">AI-Powered Intelligence</h4>
-                    <p class="card-text text-muted">
-                        Advanced natural language processing to understand your documents 
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-table fa-3x text-success mb-3"></i>
+                    <h5>CSV Data</h5>
+                    <p>Query and analyze CSV files naturally</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-database fa-3x text-info mb-3"></i>
+                    <h5>SQL Databases</h5>
+                    <p>Connect and query database files</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
                         and provide accurate, contextual answers.
                     </p>
                 </div>

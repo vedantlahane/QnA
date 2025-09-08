@@ -1,0 +1,269 @@
+{% extends 'qna_app/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 mx-auto">
+        <h2 class="mb-4">Dashboard</h2>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text-primary">{{ file_stats.total }}</h3>
+                        <p class="mb-0">Total Files</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text-success">{{ conversation_stats.total }}</h3>
+                        <p class="mb-0">Total Conversations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Recent Files</h6>
+                    </div>
+                    <div class="card-body">
+                        {% for file in user_files|slice:":5" %}
+                            <div class="mb-2">
+                                <small>{{ file.original_filename|truncatechars:30 }}</small>
+                                <span class="badge bg-secondary float-end">{{ file.get_status_display }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Recent Conversations</h6>
+                    </div>
+                    <div class="card-body">
+                        {% for conv in conversation_stats.recent %}
+                            <div class="mb-2">
+                                <small>{{ conv.user_message|truncatechars:40 }}</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+                <h6>Status:</h6>
+                <div>
+                    {% for status_label, count in file_stats.by_status.items %}
+                        {% if count > 0 %}
+                        <div class="d-flex justify-content-between">
+                            <span>{{ status_label|title }}</span>
+                            <span class="badge bg-{% if status_label == 'completed' %}success{% elif status_label == 'processing' %}warning{% elif status_label == 'failed' %}danger{% else %}secondary{% endif %}">{{ count }}</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversation Statistics -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-comments me-2"></i>Conversation Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <div class="stats-number text-success">{{ conversation_stats.total }}</div>
+                        <div class="text-muted">Total Chats</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stats-number text-info">{{ conversation_stats.this_month }}</div>
+                        <div class="text-muted">This Month</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stats-number text-warning">
+                            {% if conversation_stats.avg_rating %}
+                                {{ conversation_stats.avg_rating|floatformat:1 }}
+                            {% else %}
+                                0.0
+                            {% endif %}
+                        </div>
+                        <div class="text-muted">Avg Rating</div>
+                    </div>
+                </div>
+
+                <h6>Recent Conversations:</h6>
+                <div class="list-group list-group-flush">
+                    {% for conversation in conversation_stats.recent %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <small class="text-muted">{{ conversation.created_at|date:"M d, H:i" }}</small>
+                                <p class="mb-1 text-truncate">{{ conversation.get_short_user_message }}</p>
+                            </div>
+                            {% if conversation.user_rating %}
+                            <span class="badge bg-warning ms-2">
+                                <i class="fas fa-star"></i> {{ conversation.user_rating }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-3">
+                        <small class="text-muted">No conversations yet</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Agent Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cogs me-2"></i>Agent Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>System Status:</h6>
+                        <p class="mb-2">
+                            <span class="badge bg-{% if agent_status.status == 'active' %}success{% else %}warning{% endif %}">
+                                {{ agent_status.status|title }}
+                            </span>
+                        </p>
+                        <p class="text-muted small">{{ agent_status.message }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Quick Actions:</h6>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="{% url 'qna_app:chat' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-comments me-1"></i>New Chat
+                            </a>
+                            <a href="{% url 'qna_app:upload' %}" class="btn btn-success btn-sm">
+                                <i class="fas fa-upload me-1"></i>Upload File
+                            </a>
+                            <a href="{% url 'qna_app:conversation_history' %}" class="btn btn-info btn-sm">
+                                <i class="fas fa-history me-1"></i>View History
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if conversation_stats.recent %}
+                <div class="timeline">
+                    {% for conversation in conversation_stats.recent %}
+                    <div class="timeline-item mb-3">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <small class="text-muted">{{ conversation.created_at|date:"M d, Y H:i" }}</small>
+                            <p class="mb-1">
+                                <strong>You asked:</strong> {{ conversation.get_short_user_message }}
+                            </p>
+                            <p class="mb-1 text-muted small">
+                                <strong>Agent responded</strong> in {{ conversation.response_time_seconds|floatformat:2 }} seconds
+                            </p>
+                            {% if conversation.user_rating %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-star me-1"></i>Rated {{ conversation.user_rating }}/5
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Recent Activity</h5>
+                    <p class="text-muted">Start chatting to see your activity here!</p>
+                    <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Start Chatting
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--bs-primary) !important;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-left: 15px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px var(--bs-primary);
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 17px;
+    width: 2px;
+    height: calc(100% - 12px);
+    background: var(--bs-primary);
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid var(--bs-primary);
+}
+</style>
+
+{% endblock %}

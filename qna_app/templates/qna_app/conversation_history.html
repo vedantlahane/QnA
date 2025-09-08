@@ -1,0 +1,168 @@
+{% extends 'qna_app/base.html' %}
+
+{% block title %}Conversation History{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 mx-auto">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Conversation History</h2>
+            <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>New Chat
+            </a>
+        </div>
+
+        {% if conversations %}
+            <!-- Results Summary -->
+            <div class="mb-3">
+                <p class="text-muted">
+                    Showing {{ conversations|length }} of {{ total_conversations }} conversations
+                </p>
+            </div>
+
+            <!-- Conversations List -->
+            {% for conversation in conversations %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="card-title">
+                                Session: {{ conversation.session_id }}
+                                {% if conversation.user_rating %}
+                                    <span class="badge bg-warning ms-2">
+                                        <i class="fas fa-star me-1"></i>{{ conversation.user_rating }}/5
+                                    </span>
+                                {% endif %}
+                            </h5>
+                            <p class="card-text text-truncate">
+                                <strong>You:</strong> {{ conversation.get_short_user_message }}
+                            </p>
+                            <p class="card-text text-truncate">
+                                <strong>Agent:</strong> {{ conversation.agent_response|truncatechars:100 }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted d-block">
+                                {{ conversation.created_at|date:"M d, Y H:i" }}
+                            </small>
+                            {% if conversation.response_time_ms %}
+                            <small class="text-muted d-block">
+                                Response time: {{ conversation.response_time_seconds|floatformat:2 }}s
+                            </small>
+                            {% endif %}
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewConversation('{{ conversation.id }}')">
+                                    <i class="fas fa-eye me-1"></i>View
+                                </button>
+                                <form method="post" action="{% url 'qna_app:rate_conversation' conversation.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <select name="user_rating" class="form-select form-select-sm d-inline-block w-auto me-1" onchange="this.form.submit()">
+                                        <option value="">Rate</option>
+                                        <option value="5" {% if conversation.user_rating == 5 %}selected{% endif %}>⭐⭐⭐⭐⭐</option>
+                                        <option value="4" {% if conversation.user_rating == 4 %}selected{% endif %}>⭐⭐⭐⭐</option>
+                                        <option value="3" {% if conversation.user_rating == 3 %}selected{% endif %}>⭐⭐⭐</option>
+                                        <option value="2" {% if conversation.user_rating == 2 %}selected{% endif %}>⭐⭐</option>
+                                        <option value="1" {% if conversation.user_rating == 1 %}selected{% endif %}>⭐</option>
+                                    </select>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No conversations found</h4>
+                    <p class="text-muted">Start a conversation to see your history here.</p>
+                    <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Start Chatting
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if conversations.has_other_pages %}
+            <nav aria-label="Conversation pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if conversations.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ conversations.previous_page_number }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in conversations.paginator.page_range %}
+                        {% if conversations.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > conversations.number|add:'-3' and num < conversations.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if conversations.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ conversations.next_page_number }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No conversations found</h4>
+                    <p class="text-muted">Start a conversation to see your history here.</p>
+                    <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Start Chatting
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Conversation Modal -->
+<div class="modal fade" id="conversationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Conversation Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="conversationContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function viewConversation(conversationId) {
+    // In a real implementation, you would fetch conversation details via AJAX
+    // For now, just show a placeholder
+    const content = `
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Conversation details would be loaded here via AJAX.
+            <br><small>Conversation ID: ${conversationId}</small>
+        </div>
+    `;
+
+    document.getElementById('conversationContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('conversationModal')).show();
+}
+</script>
+{% endblock %}

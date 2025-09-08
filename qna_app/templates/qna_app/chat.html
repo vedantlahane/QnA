@@ -2,82 +2,6 @@
 
 {% block title %}Chat - AI Document Assistant{% endblock %}
 
-{% block extra_css %}
-<style>
-    .chat-container {
-        height: 70vh;
-        overflow-y: auto;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        padding: 1rem;
-    }
-    
-    .message {
-        animation: fadeIn 0.3s ease-in;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .typing-indicator {
-        display: none;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
-        background: #f1f5f9;
-        border-radius: 12px;
-        margin: 8px;
-        max-width: 80px;
-    }
-    
-    .typing-dots {
-        display: flex;
-        gap: 4px;
-    }
-    
-    .typing-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #64748b;
-        animation: typing 1.4s infinite;
-    }
-    
-    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-    
-    @keyframes typing {
-        0%, 60%, 100% { transform: translateY(0); }
-        30% { transform: translateY(-10px); }
-    }
-    
-    .quick-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-    }
-    
-    .quick-action-btn {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 20px;
-        padding: 6px 12px;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .quick-action-btn:hover {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -130,19 +54,10 @@
                                 <div class="message user">
                                     <strong>You:</strong><br>
                                     {{ conversation.user_message }}
-                                    <div class="small text-muted mt-1">
-                                        {{ conversation.created_at|date:"H:i" }}
-                                    </div>
                                 </div>
                                 <div class="message agent">
                                     <strong><i class="fas fa-robot me-1"></i>Assistant:</strong><br>
                                     {{ conversation.agent_response|linebreaks }}
-                                    <div class="small text-muted mt-1">
-                                        {{ conversation.created_at|date:"H:i" }}
-                                        {% if conversation.response_time_ms %}
-                                            • {{ conversation.response_time_ms }}ms
-                                        {% endif %}
-                                    </div>
                                 </div>
                             {% endfor %}
                         {% endif %}
@@ -160,15 +75,17 @@
                 </div>
                 
                 <div class="card-footer">
-                    <form id="chat-form" method="post">
+                    <form id="chat-form" method="post" novalidate>
                         {% csrf_token %}
                         <div class="input-group">
-                            {{ form.message }}
+                            <textarea class="form-control" id="id_message" name="message" rows="2" 
+                                      placeholder="Ask me anything about your uploaded documents or general questions..." 
+                                      maxlength="2000" required></textarea>
                             <button type="submit" class="btn btn-primary" id="send-button">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
-                        <div class="form-text">{{ form.message.help_text }}</div>
+                        <div class="form-text">Maximum 2000 characters</div>
                     </form>
                 </div>
             </div>
@@ -179,20 +96,12 @@
             <!-- System Status -->
             <div class="card sidebar mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>System Status</h6>
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Status</h6>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>Agent Status:</span>
-                        <span class="badge bg-success">Online</span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>Active Tools:</span>
-                        <span class="badge bg-info">{{ agent_status.total_tools|default:0 }}</span>
-                    </div>
                     <div class="d-flex justify-content-between align-items-center">
-                        <span>Processed Files:</span>
-                        <span class="badge bg-primary">{{ agent_status.processed_files_count|default:0 }}</span>
+                        <span>System:</span>
+                        <span class="badge bg-success">Online</span>
                     </div>
                 </div>
             </div>
@@ -218,9 +127,6 @@
                                                 {{ file.get_file_size_display }}
                                             </small>
                                         </div>
-                                        <span class="file-status status-{{ file.status }}">
-                                            {{ file.get_status_display }}
-                                        </span>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -286,33 +192,54 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToBottom();
         
         try {
+            // Get CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            const csrfValue = csrfToken ? csrfToken.value : '';
+            
+            if (!csrfValue) {
+                console.error('CSRF token not found');
+                throw new Error('CSRF token not found');
+            }
+            
+            // Get API URL
+            const apiUrl = '{% url "qna_app:api_chat" %}';
+            console.log('API URL:', apiUrl);
+            
             // Send message via API
-            const response = await fetch('{% url "qna_app:api_chat" %}', {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-CSRFToken': csrfValue,
                 },
                 body: JSON.stringify({ message: message })
             });
             
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('HTTP error:', response.status, errorText);
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
+            
             const data = await response.json();
+            console.log('API response:', data);
             
             // Hide typing indicator
             typingIndicator.style.display = 'none';
             
             if (data.success) {
-                addMessage(data.response, 'agent', data.response_time);
-                showToast('Response generated successfully!', 'success');
+                addMessage(data.response, 'agent');
+                showToast('Message sent successfully!', 'success');
             } else {
-                addMessage('Sorry, I encountered an error: ' + data.error, 'agent');
+                addMessage('Sorry, I encountered an error: ' + (data.error || 'Unknown error'), 'agent');
                 showToast('Error generating response', 'danger');
             }
             
         } catch (error) {
             typingIndicator.style.display = 'none';
-            addMessage('Sorry, there was a connection error. Please try again.', 'agent');
-            showToast('Connection error', 'danger');
+            console.error('Chat error:', error);
+            addMessage('Sorry, there was a connection error. Please check your internet connection and try again.', 'agent');
+            showToast('Connection error - please try again', 'danger');
         }
         
         // Re-enable form
@@ -323,21 +250,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Add message to chat
-    function addMessage(content, type, responseTime = null) {
+    function addMessage(content, type) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${type}`;
-        
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false 
-        });
-        
-        let timeInfo = timeStr;
-        if (responseTime) {
-            timeInfo += ` • ${responseTime}ms`;
-        }
         
         const icon = type === 'agent' ? '<i class="fas fa-robot me-1"></i>' : '';
         const label = type === 'agent' ? 'Assistant' : 'You';
@@ -345,7 +260,6 @@ document.addEventListener('DOMContentLoaded', function() {
         messageDiv.innerHTML = `
             <strong>${icon}${label}:</strong><br>
             ${content.replace(/\n/g, '<br>')}
-            <div class="small text-muted mt-1">${timeInfo}</div>
         `;
         
         chatContainer.appendChild(messageDiv);
@@ -355,7 +269,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Quick message function
     window.sendQuickMessage = function(message) {
         messageInput.value = message;
-        chatForm.dispatchEvent(new Event('submit'));
+        messageInput.focus();
+        // Trigger form submission
+        setTimeout(() => {
+            chatForm.dispatchEvent(new Event('submit'));
+        }, 100);
     };
     
     // Clear chat function

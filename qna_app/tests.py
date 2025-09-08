@@ -1,3 +1,2 @@
-from django.test import TestCase
-
-# Create your tests here.
+# qna_app/tests.py
+# Tests will be added here as needed
