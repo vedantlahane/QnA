@@ -126,9 +126,7 @@ def handle_chat_message(request, form, session_id):
         
         # Get response from agent
         agent_response = get_answer_from_agent(
-            query=user_message,
-            session_id=session_id,
-            user_id=str(request.user.id)
+            query=user_message
         )
         
         # Calculate response time
@@ -186,12 +184,7 @@ def upload(request):
                 # Process file with agent
                 success = process_file_for_agent(
                     uploaded_file_path=uploaded_file.file.path,
-                    file_id=uploaded_file.file_id,
-                    file_metadata={
-                        'original_filename': uploaded_file.original_filename,
-                        'user_id': request.user.id,
-                        'uploaded_at': uploaded_file.uploaded_at.isoformat()
-                    }
+                    file_id=uploaded_file.file_id
                 )
                 
                 if success:
@@ -373,9 +366,7 @@ def api_chat(request):
         
         try:
             agent_response = get_answer_from_agent(
-                query=message,
-                session_id=session_id,
-                user_id=str(request.user.id)
+                query=message
             )
         except Exception as agent_error:
             logger.error(f"Agent error: {agent_error}")
