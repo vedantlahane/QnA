@@ -1,43 +1,21 @@
 # data_app/agent_core/agent_graph.py
 
 import json
-from typing import Annotated, Literal, List, Any
+from typing import Annotated, List, Any
 from typing_extensions import TypedDict
-from langchain_core.messages import ToolMessage
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import StateGraph, START
 from langchain_openai import ChatOpenAI
-from langchain_core.tools import BaseTool
 from .config import LoadToolsConfig
 
-# NOTE: You will need to import your specific tools here from the tools directory
-from .tools import csv_rag_tool, pdf_rag_tool, sql_tool, tavily_search_tool
 
 # --- State and Tooling Logic ---
 class State(TypedDict):
     """Represents the state structure containing a list of messages.
     """
     messages: Annotated[list, add_messages]
-
-
-def route_tools(
-    state: State,
-) -> Literal["tools", "__end__"]:
-    """
-    Determines whether to route to the ToolNode or end the flow.
-    """
-    if isinstance(state, list):
-        ai_message = state[-1]
-    elif messages := state.get("messages", []):
-        ai_message = messages[-1]
-    else:
-        raise ValueError(
-            f"No messages found in input state to tool_edge: {state}")
-    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
-        return "tools"
-    return "__end__"
 
 # --- Main Graph Builder ---
 def build_graph(available_tools: List[Any]) -> StateGraph:
@@ -73,8 +51,7 @@ def build_graph(available_tools: List[Any]) -> StateGraph:
     # Define the conditional routing from the chatbot
     graph_builder.add_conditional_edges(
         "chatbot",
-        route_tools,
-        {"tools": "tools", "__end__": "__end__"},
+        tools_condition,  # Built-in routing function
     )
 
     # Define the edges for the agentic loop

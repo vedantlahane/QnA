@@ -1,6 +1,6 @@
 # data_app/agent_core/tools/tavily_search_tool.py
 
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_tavily import TavilySearch
 from langchain_core.tools import tool
 from data_app.agent_core.config import LoadToolsConfig
 
@@ -14,7 +14,7 @@ def search_internet(query: str) -> str:
     This tool is used when the answer cannot be found in uploaded documents.
     """
     try:
-        search_tool = TavilySearchResults(
+        search_tool = TavilySearch(
             max_results=TOOLS_CFG.tavily_search_max_results
         )
         results = search_tool.invoke(query)

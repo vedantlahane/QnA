@@ -1,7 +1,6 @@
 # data_app/manager.py
 
 import os
-import uuid
 from typing import Dict, List, Any
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -14,16 +13,21 @@ class Manager:
     """
     Manages the agent's lifecycle, including data processing and agent invocation.
     This class is a singleton to ensure the agent graph is only built once.
+    singleton pattern means that only one instance of this class can exist at any time.
     """
-    _instance = None
+    _instance = None 
     _agent_graph = None
-    _available_tools: Dict[str, Any] = {}
+    #_avalable_tools is a dictionary to hold tool name to function mapping, so here key is of type str and value is of type Any, this will allow us to store any callable tool function.
+    _available_tools: Dict[str, Any] = {} 
+    # Map file extensions to their respective processing functions
     _file_processing_func_map = {
         '.pdf': pdf_rag_tool.process_and_vectorize,
         '.sql': sql_tool.configure_database,
         '.csv': csv_rag_tool.process_and_vectorize,
     }
 
+    # __new__ method to implement sigleton pattern
+    #cls is the class itself, *args and **kwargs are any additional arguments that might be passed when creating an instance.* meaning that if an instance already exists, it will return that instance instead of creating a new one.** meaning that any additional keyword arguments passed during instantiation will be accepted but not used in this case.
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super(Manager, cls).__new__(cls, *args, **kwargs)
@@ -32,10 +36,11 @@ class Manager:
 
     def _initialize_agent(self):
         """Builds the agent graph with all available tools."""
+        # _available_tools will be started with the tavily search tool by default
         self._available_tools = {
             'tavily_search': tavily_search_tool.search_internet
         }
-        # The graph will be built in the answer_question method
+        # The graph will be built in the answer_question method, that means it will be built the first time a question is asked, depending on the qustion the agent and if file is uploaded or not, agent will use the tools accordingly.
         # for a more lazy loading approach to avoid startup delays.
         self._agent_graph = build_graph(list(self._available_tools.values()))
         print("Agent manager initialized. Agent graph is ready.")
@@ -44,6 +49,7 @@ class Manager:
         """
         Processes a file based on its type and makes a new tool available to the agent.
         """
+        #[1].lower() is used to convert the file extension to lowercase to ensure that the comparison is case-sensitive.
         file_extension = os.path.splitext(uploaded_file_path)[1].lower()
 
         processing_func = self._file_processing_func_map.get(file_extension)
@@ -53,9 +59,12 @@ class Manager:
 
         print(f"Processing file: {uploaded_file_path}")
         try:
+            # Call the appropriate processing function based on file type, processing_func is a callable function that takes the uploaded file path and file id as arguments.
             processing_func(uploaded_file_path, file_id)
             
             # Dynamically add the new tool to the manager's available tools
+            # The tool name is constructed using the file type and file id to ensure uniqueness
+            # For example, if the file is a PDF and its ID is 123, the tool name will be "pdf_tool_123". And the corresponding tool function is assigned based on the file type. this will store the tool function in the _available_tools dictionary with the constructed tool name as the key. this allows the agent to use this specific tool when needed(e.g., when a user asks a question related to the content of that file and if there are two pdf file agent can choose accordingly).
             if file_extension == '.pdf':
                 tool_name = f"pdf_tool_{file_id}"
                 new_tool = pdf_rag_tool.answer_question_on_pdf
