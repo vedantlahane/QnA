@@ -55,7 +55,10 @@ ROOT_URLCONF = 'QnA.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            BASE_DIR / 'theme' / 'templates',
+            BASE_DIR / 'qna_app' / 'templates',
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -116,8 +119,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
-    BASE_DIR / "qna_app/static",
+    BASE_DIR / "theme" / "static_src" / "src",
+    BASE_DIR / "theme" / "static",
 ]
 
 # Media files (uploaded files)
@@ -130,6 +135,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # QnA/settings.py
-LOGIN_REDIRECT_URL = 'qna_app:index'
+LOGIN_REDIRECT_URL = 'qna_app:dashboard'
 LOGOUT_REDIRECT_URL = 'qna_app:index'
-LOGIN_URL = 'login'
+LOGIN_URL = 'qna_app_auth:login'

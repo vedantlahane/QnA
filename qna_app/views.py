@@ -29,7 +29,7 @@ def register(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Account created. Please log in.")
-            return redirect('login')
+            return redirect('qna_app_auth:login')
     else:
         form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
@@ -40,6 +40,8 @@ from data_app.manager import process_file_for_agent, get_answer_from_agent
 
 def index(request):
     """Simple index page to verify app is running."""
+    if request.user.is_authenticated:
+        return redirect('qna_app:dashboard')
     return render(request, 'base.html')
 
 @csrf_exempt
@@ -111,10 +113,3 @@ def chat(request):
     Message.objects.create(conversation=convo, role='assistant', content=answer)
 
     return JsonResponse({'thread_id': thread_id, 'answer': answer})
-
-from django.http import HttpResponse
-from django.contrib.auth.decorators import login_required
-
-@login_required
-def profile(request):
-    return HttpResponse("Profile")
