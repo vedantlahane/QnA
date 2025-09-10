@@ -338,6 +338,42 @@ def rate_conversation(request, conversation_id):
     
     return redirect('qna_app:conversation_history')
 
+@login_required
+def dashboard(request):
+    """User dashboard with statistics and recent activity."""
+    # File statistics
+    user_files = UploadedFile.objects.filter(user=request.user)
+    file_stats = {
+        'total': user_files.count(),
+        'by_status': {
+            'completed': user_files.filter(status='completed').count(),
+            'processing': user_files.filter(status='processing').count(),
+            'failed': user_files.filter(status='failed').count(),
+        }
+    }
+    
+    # Conversation statistics
+    user_conversations = Conversation.objects.filter(user=request.user)
+    conversation_stats = {
+        'total': user_conversations.count(),
+        'this_month': user_conversations.filter(
+            created_at__month=timezone.now().month,
+            created_at__year=timezone.now().year
+        ).count(),
+        'recent': user_conversations.order_by('-created_at')[:5],
+        'avg_rating': user_conversations.aggregate(
+            avg_rating=models.Avg('user_rating')
+        )['avg_rating'] or 0,
+    }
+    
+    context = {
+        'file_stats': file_stats,
+        'conversation_stats': conversation_stats,
+        'user_files': user_files.order_by('-uploaded_at')[:10],
+    }
+    
+    return render(request, 'qna_app/dashboard.html', context)
+
 # API Views for AJAX requests
 @login_required
 @require_http_methods(["POST"])
