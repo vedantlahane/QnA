@@ -13,11 +13,9 @@
 │       └── upload.html
 ├── data_app/
 │   ├── agent_core/
-│   │   ├── __init__.py
 │   │   ├── agent_graph.py  # Builds the main agent graph
 │   │   ├── config.py       # Holds the LoadToolsConfig class
 │   │   └── tools/          # Separate file for each agent tool
-│   │       ├── __init__.py
 │   │       ├── pdf_rag_tool.py
 │   │       ├── sql_tool.py
 │   │       ├── csv_rag_tool.py

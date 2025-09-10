@@ -10,90 +10,53 @@ and the underlying agent system, providing a clean API for file processing
 and question answering.
 
 Key Features:
-    - Singleton pattern for efficient resource management
-    - Dynamic tool registration based on uploaded files
-    - Lazy loading of agent graph for performance
-    - Comprehensive error handling and logging
-    - Support for multiple file types (PDF, CSV, SQL)
-
-Architecture:
-    The Manager class acts as a central coordinator that:
-    1. Maintains a registry of available tools
-    2. Processes uploaded files and creates corresponding tools
-    3. Builds and manages the agent graph with current tools
-    4. Handles user queries and returns agent responses
-
-Supported File Types:
-    - PDF: Document Q&A using RAG (Retrieval-Augmented Generation)
-    - CSV: Tabular data Q&A using RAG
-    - SQL: Database schema analysis and query generation
-
-Dependencies:
-    - langchain_core: For message handling
-    - agent_core.agent_graph: For agent graph construction
-    - agent_core.tools: For file processing and tool functions
-
-Integration:
-    This module is designed to be used by Django views for:
-    - File upload processing
-    - Question answering
-    - Agent lifecycle management
+- Singleton pattern for efficient resource management
+- Dynamic tool registration based on uploaded files
+- Lazy loading of agent graph for performance
+- Comprehensive error handling and logging
+- Support for multiple file types (PDF, CSV, SQL)
 
 Author: Q&A Agent System
 Created: 2025
 """
 
 import os
-from typing import Dict, List, Any, Optional, Union
+import threading
+import logging
+from typing import Dict, Any
+
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.tools import tool
 
 # Import core agent components
 from .agent_core.agent_graph import build_graph
 from .agent_core.tools import pdf_rag_tool, sql_tool, csv_rag_tool, tavily_search_tool
+
+logger = logging.getLogger('data_app.manager')
 
 
 class Manager:
     """
     Singleton manager for the Q&A agent's lifecycle and operations.
 
-    This class implements the singleton pattern to ensure only one instance
-    manages the agent throughout the application lifecycle. It handles:
-
+    Responsibilities:
     - Agent graph initialization and rebuilding
     - Dynamic tool registration for uploaded files
     - File processing coordination
     - Query processing and response generation
-
-    The manager uses lazy loading for the agent graph to minimize startup time
-    and rebuilds the graph dynamically when new tools are added.
-
-    Class Attributes:
-        _instance: Singleton instance reference (internal use only)
-        _agent_graph: Compiled LangGraph agent (internal use only)
-        _available_tools: Dictionary mapping tool names to tool functions
-        _file_processing_func_map: Mapping of file extensions to processing functions
-
-    Instance Attributes:
-        Dynamically managed through singleton pattern
-
-    Example:
-        >>> manager = Manager()
-        >>> manager.process_uploaded_file("document.pdf", 123)
-        >>> response = manager.get_agent_response("What is in the document?")
-        >>> print(response)
-        "The document contains information about..."
     """
 
-    # Class-level attributes for singleton pattern
+    # Singleton and agent state
     _instance = None
     _agent_graph = None
 
-    # Dictionary to hold tool name to function mapping
-    # Key: tool name (string), Value: callable tool function
+    # Lock to guard graph rebuilds in multi-threaded servers
+    _rebuild_lock = threading.Lock()
+
+    # Tool registry: Key: tool name, Value: callable tool function
     _available_tools: Dict[str, Any] = {}
 
-    # Mapping of file extensions to their respective processing functions
-    # This allows easy extension for new file types
+    # Mapping of file extensions to processing functions
     _file_processing_func_map = {
         '.pdf': pdf_rag_tool.process_and_vectorize,
         '.sql': sql_tool.configure_database,
@@ -101,23 +64,7 @@ class Manager:
     }
 
     def __new__(cls, *args, **kwargs) -> 'Manager':
-        """
-        Create or return the singleton instance of Manager.
-
-        This method ensures only one Manager instance exists throughout
-        the application lifecycle, implementing the singleton pattern.
-
-        Args:
-            *args: Variable positional arguments (passed to __init__)
-            **kwargs: Variable keyword arguments (passed to __init__)
-
-        Returns:
-            Manager: The singleton instance of the Manager class
-
-        Note:
-            The singleton pattern prevents multiple agent graphs from
-            being created, ensuring efficient resource usage.
-        """
+        # Create or return the singleton instance of Manager
         if not cls._instance:
             cls._instance = super(Manager, cls).__new__(cls, *args, **kwargs)
             cls._instance._initialize_agent()
@@ -126,285 +73,217 @@ class Manager:
     def _initialize_agent(self) -> None:
         """
         Initialize the agent with default tools and build the initial graph.
-
-        This method sets up the basic agent configuration with the default
-        internet search tool and creates the initial agent graph. The graph
-        will be rebuilt dynamically when new tools are added.
-
-        The initialization includes:
-        1. Setting up default tools (internet search)
-        2. Building the initial agent graph
-        3. Logging successful initialization
-
-        Note:
-            This method is called automatically during singleton instantiation.
-            Manual calling may cause duplicate initialization.
+        Start with internet search (Tavily) and compile the graph.
         """
-        # Start with the tavily search tool as the default
-        # This provides basic internet search capability
+        # Default tool: internet search capability
         self._available_tools = {
             'tavily_search': tavily_search_tool.search_internet
         }
 
         # Build the initial agent graph with default tools
-        # The graph will be rebuilt when new file-based tools are added
-        self._agent_graph = build_graph(list(self._available_tools.values()))
-
-        print("Agent manager initialized. Agent graph is ready.")
+        with self._rebuild_lock:
+            self._agent_graph = build_graph(list(self._available_tools.values()))
+        logger.info("Agent manager initialized. Agent graph is ready.")
 
     def process_uploaded_file(self, uploaded_file_path: str, file_id: int) -> bool:
         """
         Process an uploaded file and make it available as a tool to the agent.
         Returns True on success, False on failure.
-
-        This method handles file processing based on file type, creates
-        appropriate tools, and rebuilds the agent graph to include the new tool.
-
-        The process involves:
-        1. File type detection and validation
-        2. Calling appropriate processing function
-        3. Creating tool mapping for the processed file
-        4. Rebuilding agent graph with new tool
-
-        Args:
-            uploaded_file_path (str): Absolute path to the uploaded file
-            file_id (int): Unique identifier for the file (from database)
-
-        Returns:
-            bool: True if file processed and tool registered successfully, False otherwise
-
-        Raises:
-            None: All exceptions are caught internally and logged
-
-        Supported File Types:
-            - .pdf: Creates PDF RAG tool for document Q&A
-            - .csv: Creates CSV RAG tool for tabular data Q&A
-            - .sql: Creates SQL tool for database query generation
-
-        Example:
-            >>> manager.process_uploaded_file("/uploads/document.pdf", 123)
-            Processing file: /uploads/document.pdf
-            Successfully processed file and rebuilt agent with new tool: pdf_tool_123
-
-        Note:
-            The method uses file extension to determine processing type.
-            Unsupported file types are logged and ignored.
+        Supports .pdf (RAG), .csv (RAG), and .sql/.db/.sqlite (SQL querying).
         """
-        # Extract and normalize file extension for case-insensitive comparison
-        # os.path.splitext returns (path, extension) tuple
+        # Extract and normalize file extension
         file_extension = os.path.splitext(uploaded_file_path)[1].lower()
 
-        # Get the appropriate processing function based on file extension
         processing_func = self._file_processing_func_map.get(file_extension)
-
         if not processing_func:
-            print(f"Unsupported file type: {file_extension}. File not processed.")
+            logger.info(f"Unsupported file type: {file_extension}. File not processed.")
             return False
 
-        print(f"Processing file: {uploaded_file_path}")
+        if not os.path.exists(uploaded_file_path):
+            logger.error(f"File not found: {uploaded_file_path}")
+            return False
 
+        logger.info(f"Processing file: {uploaded_file_path}")
         try:
-            # Execute the file processing function
-            # Each processing function handles vectorization and storage
+            # Execute file processing/vectorization/configuration
             processing_func(uploaded_file_path, file_id)
 
-            # Create dynamic tool mapping based on file type and ID
-            # Tool names include file_id to ensure uniqueness
+            # Select the appropriate tool to answer queries for this file
             if file_extension == '.pdf':
                 tool_name = f"pdf_tool_{file_id}"
-                new_tool = pdf_rag_tool.answer_question_on_pdf
+                # Create a tool instance with bound file_id
+                def create_pdf_tool(fid):
+                    @tool
+                    def pdf_tool(query: str) -> str:
+                        """Answer questions based on a specific PDF using RAG with basic source citations."""
+                        try:
+                            from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+                            from langchain_community.vectorstores import FAISS
+                            from langchain.chains import RetrievalQA
+                            from .agent_core.config import LoadToolsConfig
+                            import logging
+                            logger = logging.getLogger('data_app.manager')
+                            TOOLS_CFG = LoadToolsConfig()
+                            
+                            embeddings = OpenAIEmbeddings(model=TOOLS_CFG.pdf_rag_embedding_model)
+                            index_path = f"data/faiss_index_{fid}"
+                            vector_store = FAISS.load_local(
+                                index_path,
+                                embeddings,
+                                allow_dangerous_deserialization=True,
+                            )
+                            retriever = vector_store.as_retriever(
+                                search_type="similarity",
+                                search_kwargs={"k": TOOLS_CFG.pdf_rag_k},
+                            )
+                            llm = ChatOpenAI(temperature=TOOLS_CFG.pdf_rag_llm_temperature, model=TOOLS_CFG.pdf_rag_llm)
+                            qa_chain = RetrievalQA.from_chain_type(
+                                llm=llm,
+                                retriever=retriever,
+                                return_source_documents=True,
+                            )
+                            result = qa_chain.invoke({"query": query})
+                            answer = result.get('result') if isinstance(result, dict) else str(result)
+                            sources = result.get('source_documents', []) if isinstance(result, dict) else []
+                            citations = []
+                            for d in sources:
+                                meta = getattr(d, 'metadata', {}) or {}
+                                page = meta.get('page')
+                                citations.append(f"[page {page+1}]" if page is not None else "[source]")
+                            citation_str = ' '.join(citations) if citations else ''
+                            return f"{answer}\n\nSources: {citation_str}"
+                        except FileNotFoundError:
+                            return (
+                                "Sorry, the PDF with the specified ID has not been processed yet. "
+                                "Please ensure the file has been uploaded and processed before asking questions."
+                            )
+                        except Exception as e:
+                            return (
+                                "Sorry, I could not find information on this topic in the specified PDF. "
+                                f"Error details: {str(e)}. "
+                                "The document may not contain relevant information about your question."
+                            )
+                    pdf_tool.name = f"answer_pdf_{fid}"
+                    pdf_tool.description = f"Answer questions about the content of PDF file {fid} using retrieval-augmented generation."
+                    return pdf_tool
+                
+                new_tool = create_pdf_tool(file_id)
+                
             elif file_extension == '.csv':
                 tool_name = f"csv_tool_{file_id}"
-                new_tool = csv_rag_tool.answer_question_on_csv
+                # Create a tool instance with bound file_id
+                def create_csv_tool(fid):
+                    @tool
+                    def csv_tool(query: str) -> str:
+                        """Answer questions about CSV content using RAG with basic source citations."""
+                        try:
+                            from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+                            from langchain_community.vectorstores import FAISS
+                            from langchain.chains import RetrievalQA
+                            from .agent_core.config import LoadToolsConfig
+                            import logging
+                            logger = logging.getLogger('data_app.manager')
+                            TOOLS_CFG = LoadToolsConfig()
+                            
+                            embeddings = OpenAIEmbeddings(model=TOOLS_CFG.csv_rag_embedding_model)
+                            vector_store = FAISS.load_local(
+                                f"data/faiss_index_csv_{fid}",
+                                embeddings,
+                                allow_dangerous_deserialization=True,
+                            )
+                            retriever = vector_store.as_retriever(
+                                search_type="similarity",
+                                search_kwargs={"k": TOOLS_CFG.csv_rag_k},
+                            )
+                            llm = ChatOpenAI(temperature=TOOLS_CFG.csv_rag_llm_temperature, model=TOOLS_CFG.csv_rag_llm)
+                            qa_chain = RetrievalQA.from_chain_type(
+                                llm=llm,
+                                retriever=retriever,
+                                return_source_documents=True,
+                            )
+                            result = qa_chain.invoke({"query": query})
+                            answer = result.get('result') if isinstance(result, dict) else str(result)
+                            sources = result.get('source_documents', []) if isinstance(result, dict) else []
+                            citations = []
+                            for d in sources:
+                                meta = getattr(d, 'metadata', {}) or {}
+                                row = meta.get('row')
+                                citations.append(f"[row {row}]" if row is not None else "[source]")
+                            citation_str = ' '.join(citations) if citations else ''
+                            return f"{answer}\n\nSources: {citation_str}"
+                        except FileNotFoundError:
+                            return (
+                                "Sorry, the CSV with the specified ID has not been processed yet. "
+                                "Please ensure the file has been uploaded and processed before asking questions."
+                            )
+                        except Exception as e:
+                            return (
+                                "Sorry, I could not find information on this topic in the specified CSV. "
+                                f"Error details: {str(e)}. "
+                                "The document may not contain relevant information about your question."
+                            )
+                    csv_tool.name = f"answer_csv_{fid}"
+                    csv_tool.description = f"Answer questions about the content of CSV file {fid} using retrieval-augmented generation."
+                    return csv_tool
+                
+                new_tool = create_csv_tool(file_id)
+                
             elif file_extension == '.sql':
                 tool_name = f"sql_tool_{file_id}"
                 new_tool = sql_tool.query_sql_database
             else:
-                # This shouldn't happen due to the check above, but safety first
-                print(f"Unexpected file extension: {file_extension}")
+                logger.info(f"Unexpected file extension: {file_extension}")
                 return False
 
-            # Register the new tool in the available tools dictionary
+            # Register the new tool and rebuild the agent graph
             self._available_tools[tool_name] = new_tool
+            with self._rebuild_lock:
+                self._agent_graph = build_graph(list(self._available_tools.values()))
 
-            # Rebuild the agent graph with the updated tool set
-            # This ensures the agent can use the newly processed file
-            self._agent_graph = build_graph(list(self._available_tools.values()))
-
-            print(f"Successfully processed file and rebuilt agent with new tool: {tool_name}")
+            logger.info(f"Successfully processed file and rebuilt agent with new tool: {tool_name}")
             return True
-
         except Exception as e:
-            # Comprehensive error handling for file processing failures
-            print(f"Error processing file: {e}")
+            logger.info(f"Error processing file: {e}")
             return False
 
-    def get_agent_response(self, query: str) -> str:
+    def get_agent_response(self, query: str, thread_id: str = "default_thread") -> str:
         """
         Process a user query through the agent and return the response.
-
-        This method serves as the main interface for question answering.
-        It invokes the agent graph with the user's query and extracts
-        the final answer from the agent's response.
-
-        The process involves:
-        1. Validating agent graph availability
-        2. Formatting query as LangChain message
-        3. Invoking agent with proper configuration
-        4. Extracting and returning the final answer
-
-        Args:
-            query (str): The user's question or query string
-
-        Returns:
-            str: The agent's response to the query, or error message if failed
-
-        Raises:
-            None: All exceptions are caught internally and return error strings
-
-        Example:
-            >>> response = manager.get_agent_response("What is machine learning?")
-            >>> print(response)
-            "Machine learning is a subset of artificial intelligence..."
-
-        Note:
-            The method uses a default thread_id for conversation continuity.
-            For multi-user applications, consider using unique thread_ids per user.
+        The thread_id parameter isolates conversation memory per session.
         """
-        # Ensure agent graph is available (fallback for edge cases)
+        # Ensure agent graph is available
         if not self._agent_graph:
-            print("Warning: Agent graph not found, reinitializing...")
+            logger.info("Warning: Agent graph not found, reinitializing...")
             self._initialize_agent()
 
-        # Format the query as a LangChain HumanMessage
-        # This follows LangChain's message format for agent interactions
+        # Prepare inputs and config
         inputs = {"messages": [HumanMessage(content=query)]}
-
-        # Configuration for the agent execution
-        # thread_id enables conversation memory and state persistence
-        config = {"configurable": {"thread_id": "default_thread"}}
+        config = {"configurable": {"thread_id": thread_id}}
 
         try:
-            # Invoke the agent graph with the query
-            # The agent will automatically select appropriate tools based on the query
             response = self._agent_graph.invoke(inputs, config=config)
-
-            # Extract the final answer from the last message in the response
-            # LangGraph returns a dictionary with 'messages' containing the conversation
             messages = response.get('messages', [])
             if messages:
                 last_message = messages[-1]
-                # Return the content of the last message (should be the agent's final answer)
                 return last_message.content
-            else:
-                return "No response generated by the agent."
-
+            return "No response generated by the agent."
         except Exception as e:
-            # Handle various potential errors during agent invocation
-            print(f"Error invoking agent: {e}")
+            logger.info(f"Error invoking agent: {e}")
             return "Sorry, I am unable to process your request at this time."
 
 
 # --- Global Manager Instance ---
-# Create a single global instance for easy access throughout the application
-# This follows the singleton pattern established in the Manager class
 agent_manager = Manager()
 
 
 def process_file_for_agent(uploaded_file_path: str, file_id: int) -> bool:
-    """
-    Public interface function for processing uploaded files.
-    Returns True on success, False on failure.
-    """
+    """Public interface to process uploaded files. Returns True on success."""
     return agent_manager.process_uploaded_file(uploaded_file_path, file_id)
 
 
-def get_answer_from_agent(query: str) -> str:
+def get_answer_from_agent(query: str, thread_id: str = "default_thread") -> str:
     """
-    Public interface function for getting agent responses.
-
-    This function provides a clean API for Django views and other components
-    to query the agent without directly accessing the Manager class.
-
-    Args:
-        query (str): The user's question or query
-
-    Returns:
-        str: The agent's response to the query
-
-    Example:
-        >>> answer = get_answer_from_agent("What is AI?")
-        >>> print(answer)
-        "AI stands for Artificial Intelligence..."
-
-    Note:
-        This function uses the global agent_manager instance.
-        All queries go through the singleton Manager for consistency.
+    Public interface to get agent responses.
+    Allows passing a thread_id for per-session memory.
     """
-    return agent_manager.get_agent_response(query)
-
-
-"""
-USAGE INFORMATION:
-
-This module provides the main interface for the Q&A agent system:
-
-1. File Processing:
-   >>> from data_app.manager import process_file_for_agent
-   >>> process_file_for_agent("/path/to/file.pdf", 123)
-
-2. Question Answering:
-   >>> from data_app.manager import get_answer_from_agent
-   >>> answer = get_answer_from_agent("What is in the document?")
-
-3. Direct Manager Access (for advanced use):
-   >>> from data_app.manager import agent_manager
-   >>> response = agent_manager.get_agent_response("Custom query")
-
-ARCHITECTURE NOTES:
-
-- Singleton Pattern: Ensures only one agent manager exists
-- Lazy Loading: Agent graph is built on first use
-- Dynamic Tools: Tools are added based on uploaded files
-- Error Resilience: Comprehensive error handling throughout
-- Thread Safety: Uses LangGraph's built-in thread management
-
-INTEGRATION WITH DJANGO:
-
-This module is designed to be called from Django views:
-
-    from data_app.manager import process_file_for_agent, get_answer_from_agent
-
-    def upload_view(request):
-        # Process uploaded file
-        process_file_for_agent(file_path, file_id)
-        return JsonResponse({"status": "processed"})
-
-    def chat_view(request):
-        query = request.POST.get("query")
-        answer = get_answer_from_agent(query)
-        return JsonResponse({"answer": answer})
-
-PERFORMANCE CONSIDERATIONS:
-
-- Agent graph is rebuilt when new tools are added (acceptable for file uploads)
-- Singleton pattern prevents multiple graph instances
-- File processing is done asynchronously in production
-- Memory usage scales with number of uploaded files
-
-TROUBLESHOOTING:
-
-1. "Agent graph not found":
-   - Check if Manager singleton is properly initialized
-   - Verify all required dependencies are installed
-
-2. "File processing failed":
-   - Check file permissions and paths
-   - Verify supported file types
-   - Check tool-specific error logs
-
-3. "No response from agent":
-   - Verify agent graph is built with tools
-   - Check LangChain/LangGraph configuration
-   - Review error logs for specific failures
-"""
+    return agent_manager.get_agent_response(query, thread_id=thread_id)
