@@ -128,3 +128,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# QnA/settings.py
+LOGIN_REDIRECT_URL = 'qna_app:index'
+LOGOUT_REDIRECT_URL = 'qna_app:index'
+LOGIN_URL = 'login'
