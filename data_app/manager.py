@@ -152,9 +152,10 @@ class Manager:
 
         print("Agent manager initialized. Agent graph is ready.")
 
-    def process_uploaded_file(self, uploaded_file_path: str, file_id: int) -> None:
+    def process_uploaded_file(self, uploaded_file_path: str, file_id: int) -> bool:
         """
         Process an uploaded file and make it available as a tool to the agent.
+        Returns True on success, False on failure.
 
         This method handles file processing based on file type, creates
         appropriate tools, and rebuilds the agent graph to include the new tool.
@@ -170,7 +171,7 @@ class Manager:
             file_id (int): Unique identifier for the file (from database)
 
         Returns:
-            None
+            bool: True if file processed and tool registered successfully, False otherwise
 
         Raises:
             None: All exceptions are caught internally and logged
@@ -198,7 +199,7 @@ class Manager:
 
         if not processing_func:
             print(f"Unsupported file type: {file_extension}. File not processed.")
-            return
+            return False
 
         print(f"Processing file: {uploaded_file_path}")
 
@@ -221,7 +222,7 @@ class Manager:
             else:
                 # This shouldn't happen due to the check above, but safety first
                 print(f"Unexpected file extension: {file_extension}")
-                return
+                return False
 
             # Register the new tool in the available tools dictionary
             self._available_tools[tool_name] = new_tool
@@ -231,10 +232,12 @@ class Manager:
             self._agent_graph = build_graph(list(self._available_tools.values()))
 
             print(f"Successfully processed file and rebuilt agent with new tool: {tool_name}")
+            return True
 
         except Exception as e:
             # Comprehensive error handling for file processing failures
             print(f"Error processing file: {e}")
+            return False
 
     def get_agent_response(self, query: str) -> str:
         """
@@ -308,29 +311,12 @@ class Manager:
 agent_manager = Manager()
 
 
-def process_file_for_agent(uploaded_file_path: str, file_id: int) -> None:
+def process_file_for_agent(uploaded_file_path: str, file_id: int) -> bool:
     """
     Public interface function for processing uploaded files.
-
-    This function provides a clean API for Django views and other components
-    to process uploaded files without directly instantiating the Manager class.
-
-    Args:
-        uploaded_file_path (str): Absolute path to the uploaded file
-        file_id (int): Unique identifier for the file
-
-    Returns:
-        None
-
-    Example:
-        >>> process_file_for_agent("/uploads/document.pdf", 123)
-        # File is processed and tool is registered with the agent
-
-    Note:
-        This function uses the global agent_manager instance.
-        All file processing goes through the singleton Manager.
+    Returns True on success, False on failure.
     """
-    agent_manager.process_uploaded_file(uploaded_file_path, file_id)
+    return agent_manager.process_uploaded_file(uploaded_file_path, file_id)
 
 
 def get_answer_from_agent(query: str) -> str:

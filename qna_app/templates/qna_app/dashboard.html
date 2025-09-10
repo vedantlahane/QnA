@@ -1,378 +1,71 @@
 {% extends 'base.html' %}
-
 {% block title %}Dashboard - AI Document Assistant{% endblock %}
-
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-            <p class="text-gray-600">Welcome back! Here's an overview of your activity.</p>
-        </div>
+<div class="mx-auto max-w-7xl px-4 py-6">
+  <h1 class="text-2xl font-semibold mb-4">Welcome back! Here's an overview of your activity.</h1>
 
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <!-- Total Files -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center">
-                    <div class="p-3 bg-blue-100 rounded-lg">
-                        <i class="fas fa-file-alt text-blue-600 text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Total Files</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ file_stats.total }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Total Conversations -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center">
-                    <div class="p-3 bg-green-100 rounded-lg">
-                        <i class="fas fa-comments text-green-600 text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Total Chats</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ conversation_stats.total }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- This Month -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center">
-                    <div class="p-3 bg-purple-100 rounded-lg">
-                        <i class="fas fa-calendar-alt text-purple-600 text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">This Month</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ conversation_stats.this_month }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Average Rating -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center">
-                    <div class="p-3 bg-yellow-100 rounded-lg">
-                        <i class="fas fa-star text-yellow-600 text-xl"></i>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Avg Rating</p>
-                        <p class="text-2xl font-bold text-gray-900">
-                            {% if conversation_stats.avg_rating %}
-                                {{ conversation_stats.avg_rating|floatformat:1 }}
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Recent Files -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="p-6 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                        <i class="fas fa-file-alt text-blue-600 mr-2"></i>
-                        Recent Files
-                    </h3>
-                </div>
-                <div class="p-6">
-                    {% if user_files %}
-                        <div class="space-y-4">
-                            {% for file in user_files|slice:":5" %}
-                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="p-2 bg-blue-100 rounded-lg">
-                                            <i class="fas fa-file text-blue-600"></i>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-900 truncate max-w-xs">
-                                                {{ file.original_filename|truncatechars:30 }}
-                                            </p>
-                                            <p class="text-xs text-gray-500">
-                                                {{ file.uploaded_at|date:"M d, Y" }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full
-                                        {% if file.status == 'completed' %}bg-green-100 text-green-800{% elif file.status == 'processing' %}bg-yellow-100 text-yellow-800{% elif file.status == 'failed' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
-                                        {{ file.get_status_display }}
-                                    </span>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        {% if user_files|length > 5 %}
-                            <div class="mt-4 text-center">
-                                <a href="{% url 'qna_app:upload' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                    View all files →
-                                </a>
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="text-center py-8">
-                            <i class="fas fa-file-alt text-gray-400 text-3xl mb-3"></i>
-                            <p class="text-gray-500">No files uploaded yet</p>
-                            <a href="{% url 'qna_app:upload' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2 inline-block">
-                                Upload your first file
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Recent Conversations -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="p-6 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                        <i class="fas fa-comments text-green-600 mr-2"></i>
-                        Recent Conversations
-                    </h3>
-                </div>
-                <div class="p-6">
-                    {% if conversation_stats.recent %}
-                        <div class="space-y-4">
-                            {% for conv in conversation_stats.recent %}
-                                <div class="p-3 bg-gray-50 rounded-lg">
-                                    <p class="text-sm text-gray-900 mb-2">
-                                        <span class="font-medium">You:</span> {{ conv.user_message|truncatechars:60 }}
-                                    </p>
-                                    <p class="text-sm text-gray-600 mb-2">
-                                        <span class="font-medium">AI:</span> {{ conv.agent_response|truncatechars:80 }}
-                                    </p>
-                                    <div class="flex items-center justify-between text-xs text-gray-500">
-                                        <span>{{ conv.created_at|date:"M d, Y H:i" }}</span>
-                                        {% if conv.response_time_ms %}
-                                            <span>{{ conv.response_time_ms }}ms</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        <div class="mt-4 text-center">
-                            <a href="{% url 'qna_app:conversation_history' %}" class="text-green-600 hover:text-green-800 text-sm font-medium">
-                                View all conversations →
-                            </a>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-8">
-                            <i class="fas fa-comments text-gray-400 text-3xl mb-3"></i>
-                            <p class="text-gray-500">No conversations yet</p>
-                            <a href="{% url 'qna_app:chat' %}" class="text-green-600 hover:text-green-800 text-sm font-medium mt-2 inline-block">
-                                Start your first chat
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- File Status Breakdown -->
-        {% if file_stats.by_status %}
-        <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200">
-            <div class="p-6 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                    <i class="fas fa-chart-pie text-purple-600 mr-2"></i>
-                    File Status Breakdown
-                </h3>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {% for status_label, count in file_stats.by_status.items %}
-                        {% if count > 0 %}
-                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div class="flex items-center space-x-3">
-                                    <div class="p-2 rounded-lg
-                                        {% if status_label == 'completed' %}bg-green-100{% elif status_label == 'processing' %}bg-yellow-100{% elif status_label == 'failed' %}bg-red-100{% else %}bg-gray-100{% endif %}">
-                                        <i class="fas fa-circle text-xs
-                                            {% if status_label == 'completed' %}text-green-600{% elif status_label == 'processing' %}text-yellow-600{% elif status_label == 'failed' %}text-red-600{% else %}text-gray-600{% endif %}"></i>
-                                    </div>
-                                    <span class="text-sm font-medium text-gray-900 capitalize">{{ status_label }}</span>
-                                </div>
-                                <span class="px-3 py-1 bg-white text-gray-900 text-sm font-bold rounded-full border">
-                                    {{ count }}
-                                </span>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
+  <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="rounded-2xl border bg-white/70 p-4">
+      <div class="text-sm text-gray-500">Total Files</div>
+      <div class="text-2xl font-semibold">{{ file_stats.total }}</div>
     </div>
-</div>
-{% endblock %}
-                            {% else %}
-                                0.0
-                            {% endif %}
-                        </div>
-                        <div class="text-muted">Avg Rating</div>
-                    </div>
-                </div>
-
-                <h6>Recent Conversations:</h6>
-                <div class="list-group list-group-flush">
-                    {% for conversation in conversation_stats.recent %}
-                    <div class="list-group-item px-0">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <small class="text-muted">{{ conversation.created_at|date:"M d, H:i" }}</small>
-                                <p class="mb-1 text-truncate">{{ conversation.get_short_user_message }}</p>
-                            </div>
-                            {% if conversation.user_rating %}
-                            <span class="badge bg-warning ms-2">
-                                <i class="fas fa-star"></i> {{ conversation.user_rating }}
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% empty %}
-                    <div class="text-center py-3">
-                        <small class="text-muted">No conversations yet</small>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
+    <div class="rounded-2xl border bg-white/70 p-4">
+      <div class="text-sm text-gray-500">Total Chats</div>
+      <div class="text-2xl font-semibold">{{ conversation_stats.total }}</div>
     </div>
-</div>
-
-<!-- Agent Status -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-cogs me-2"></i>Agent Status
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>System Status:</h6>
-                        <p class="mb-2">
-                            <span class="badge bg-{% if agent_status.status == 'active' %}success{% else %}warning{% endif %}">
-                                {{ agent_status.status|title }}
-                            </span>
-                        </p>
-                        <p class="text-muted small">{{ agent_status.message }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Quick Actions:</h6>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <a href="{% url 'qna_app:chat' %}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-comments me-1"></i>New Chat
-                            </a>
-                            <a href="{% url 'qna_app:upload' %}" class="btn btn-success btn-sm">
-                                <i class="fas fa-upload me-1"></i>Upload File
-                            </a>
-                            <a href="{% url 'qna_app:conversation_history' %}" class="btn btn-info btn-sm">
-                                <i class="fas fa-history me-1"></i>View History
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="rounded-2xl border bg-white/70 p-4">
+      <div class="text-sm text-gray-500">This Month</div>
+      <div class="text-2xl font-semibold">{{ conversation_stats.this_month }}</div>
     </div>
-</div>
-
-<!-- Recent Activity -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-clock me-2"></i>Recent Activity
-                </h5>
-            </div>
-            <div class="card-body">
-                {% if conversation_stats.recent %}
-                <div class="timeline">
-                    {% for conversation in conversation_stats.recent %}
-                    <div class="timeline-item mb-3">
-                        <div class="timeline-marker bg-primary"></div>
-                        <div class="timeline-content">
-                            <small class="text-muted">{{ conversation.created_at|date:"M d, Y H:i" }}</small>
-                            <p class="mb-1">
-                                <strong>You asked:</strong> {{ conversation.get_short_user_message }}
-                            </p>
-                            <p class="mb-1 text-muted small">
-                                <strong>Agent responded</strong> in {{ conversation.response_time_seconds|floatformat:2 }} seconds
-                            </p>
-                            {% if conversation.user_rating %}
-                            <span class="badge bg-warning">
-                                <i class="fas fa-star me-1"></i>Rated {{ conversation.user_rating }}/5
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No Recent Activity</h5>
-                    <p class="text-muted">Start chatting to see your activity here!</p>
-                    <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>Start Chatting
-                    </a>
-                </div>
-                {% endif %}
-            </div>
-        </div>
+    <div class="rounded-2xl border bg-white/70 p-4">
+      <div class="text-sm text-gray-500">Avg Rating</div>
+      <div class="text-2xl font-semibold">
+        {% if conversation_stats.avg_rating %} {{ conversation_stats.avg_rating|floatformat:1 }} {% else %} N/A {% endif %}
+      </div>
     </div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-6">
+    <div class="rounded-2xl border bg-white/70 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-medium">Recent Files</h2>
+        <a href="{% url 'qna_app:upload' %}" class="text-blue-600 text-sm hover:underline">View all</a>
+      </div>
+      {% if user_files %}
+        <ul class="divide-y">
+          {% for file in user_files %}
+            <li class="py-3 flex items-center justify-between">
+              <div class="min-w-0">
+                <div class="font-medium truncate">{{ file.original_filename|truncatechars:30 }}</div>
+                <div class="text-xs text-gray-500">{{ file.uploaded_at|date:"M d, Y" }} • {{ file.file_type|upper }}</div>
+              </div>
+              <span class="text-xs rounded-full border px-2 py-1">{{ file.status|title }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-sm text-gray-500">No files uploaded yet</div>
+      {% endif %}
+    </div>
+
+    <div class="rounded-2xl border bg-white/70 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-medium">Recent Conversations</h2>
+        <a href="{% url 'qna_app:conversation_history' %}" class="text-blue-600 text-sm hover:underline">View all</a>
+      </div>
+      {% if conversation_stats.recent %}
+        <ul class="divide-y">
+          {% for conversation in conversation_stats.recent %}
+            <li class="py-3">
+              <div class="text-sm text-gray-700"><strong>You:</strong> {{ conversation.get_short_user_message }}</div>
+              <div class="text-xs text-gray-500 mt-1">{{ conversation.created_at|date:"M d, Y H:i" }}</div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-sm text-gray-500">Start chatting to see your activity here!</div>
+      {% endif %}
+    </div>
+  </div>
 </div>
-
-<style>
-.stats-number {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--bs-primary) !important;
-}
-
-.timeline {
-    position: relative;
-    padding-left: 30px;
-}
-
-.timeline-item {
-    position: relative;
-    margin-left: 15px;
-}
-
-.timeline-marker {
-    position: absolute;
-    left: -22px;
-    top: 5px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 0 0 2px var(--bs-primary);
-}
-
-.timeline-item:not(:last-child)::before {
-    content: '';
-    position: absolute;
-    left: -16px;
-    top: 17px;
-    width: 2px;
-    height: calc(100% - 12px);
-    background: var(--bs-primary);
-}
-
-.timeline-content {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    border-left: 3px solid var(--bs-primary);
-}
-</style>
-
 {% endblock %}

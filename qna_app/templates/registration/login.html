@@ -1,144 +1,16 @@
 {% extends 'base.html' %}
-
 {% block title %}Login - AI Document Assistant{% endblock %}
-
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <!-- Header -->
-        <div class="text-center">
-            <div class="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-6">
-                <i class="fas fa-brain text-white text-2xl"></i>
-            </div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p class="text-gray-600">Sign in to your AI Document Assistant account</p>
-        </div>
-
-        <!-- Login Form -->
-        <div class="bg-white shadow-xl rounded-xl p-8">
-            <form method="post" class="space-y-6">
-                {% csrf_token %}
-                
-                <!-- Username Field -->
-                <div>
-                    <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                        Username
-                    </label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fas fa-user text-gray-400"></i>
-                        </div>
-                        <input type="text" 
-                               name="{{ form.username.html_name }}" 
-                               id="{{ form.username.id_for_label }}"
-                               class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                               placeholder="Enter your username"
-                               required>
-                    </div>
-                    {% if form.username.errors %}
-                        <div class="mt-1 text-sm text-red-600">
-                            {% for error in form.username.errors %}
-                                <p>{{ error }}</p>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Password Field -->
-                <div>
-                    <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                        Password
-                    </label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fas fa-lock text-gray-400"></i>
-                        </div>
-                        <input type="password" 
-                               name="{{ form.password.html_name }}" 
-                               id="{{ form.password.id_for_label }}"
-                               class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                               placeholder="Enter your password"
-                               required>
-                    </div>
-                    {% if form.password.errors %}
-                        <div class="mt-1 text-sm text-red-600">
-                            {% for error in form.password.errors %}
-                                <p>{{ error }}</p>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Remember Me -->
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <input type="checkbox" 
-                               id="remember-me" 
-                               name="remember-me"
-                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                        <label for="remember-me" class="ml-2 block text-sm text-gray-700">
-                            Remember me
-                        </label>
-                    </div>
-                    <div class="text-sm">
-                        <a href="#" class="text-blue-600 hover:text-blue-800 font-medium">
-                            Forgot password?
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Submit Button -->
-                <button type="submit" 
-                        class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 font-semibold transition-colors duration-200 flex items-center justify-center space-x-2">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <span>Sign In</span>
-                </button>
-
-                <!-- Divider -->
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-white text-gray-500">Don't have an account?</span>
-                    </div>
-                </div>
-
-                <!-- Sign Up Link -->
-                <div class="text-center">
-                    <a href="{% url 'qna_app:register' %}" 
-                       class="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 font-semibold transition-colors duration-200 flex items-center justify-center space-x-2">
-                        <i class="fas fa-user-plus"></i>
-                        <span>Create New Account</span>
-                    </a>
-                </div>
-            </form>
-        </div>
-
-        <!-- Back to Home -->
-        <div class="text-center">
-            <a href="{% url 'qna_app:index' %}" 
-               class="text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center space-x-2">
-                <i class="fas fa-arrow-left"></i>
-                <span>Back to Home</span>
-            </a>
-        </div>
-    </div>
+<div class="mx-auto max-w-md px-4 py-16">
+  <div class="rounded-2xl border bg-white/70 p-6">
+    <h1 class="text-2xl font-semibold">Sign in</h1>
+    <p class="text-gray-600 mt-1">Access your AI Document Assistant account</p>
+    {% if error %}<p class="mt-2 text-sm text-red-600">{{ error }}</p>{% endif %}
+    <form method="post" class="mt-6 space-y-3">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="w-full rounded-xl bg-blue-600 text-white px-4 py-2 hover:bg-blue-700">Login</button>
+    </form>
+  </div>
 </div>
-{% endblock %}
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-// Add Bootstrap classes to form fields
-document.addEventListener('DOMContentLoaded', function() {
-    const formFields = document.querySelectorAll('input[type="text"], input[type="password"]');
-    formFields.forEach(field => {
-        field.classList.add('form-control');
-    });
-});
-</script>
 {% endblock %}

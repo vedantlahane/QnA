@@ -11,10 +11,7 @@ class UploadedFile(models.Model):
     FILE_TYPE_CHOICES = [
         ('pdf', 'PDF Document'),
         ('csv', 'CSV Data'),
-        ('sql', 'SQL Database'),
-        ('db', 'SQLite Database'),
-        ('sqlite', 'SQLite Database'),
-        ('sqlite3', 'SQLite Database'),
+        ('sql', 'SQL/DB'),
     ]
 
     STATUS_CHOICES = [
@@ -59,11 +56,11 @@ class UploadedFile(models.Model):
 
     def get_file_size_display(self):
         """Human readable file size."""
-        size = self.file_size
+        size = float(self.file_size or 0)
         for unit in ['B', 'KB', 'MB', 'GB']:
-            if size < 1024:
+            if size < 1024.0:
                 return f"{size:.1f} {unit}"
-            size /= 1024
+            size /= 1024.0
         return f"{size:.1f} TB"
 
     def mark_processing(self):
@@ -88,7 +85,6 @@ class UploadedFile(models.Model):
 
 class Conversation(models.Model):
     """Model to store chat conversations."""
-
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conversations')
     session_id = models.CharField(max_length=100, db_index=True)
 
@@ -126,7 +122,7 @@ class Conversation(models.Model):
     def response_time_seconds(self):
         """Get response time in seconds."""
         if self.response_time_ms:
-            return self.response_time_ms / 1000
+            return self.response_time_ms / 1000.0
         return None
 
     def get_short_user_message(self, length=50):
