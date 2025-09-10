@@ -1,192 +1,335 @@
 {% extends 'qna_app/base.html' %}
 
-{% block title %}AI Assistant{% endblock %}
+{% block title %}AI Document Assistant - Transform Your Document Workflow{% endblock %}
 
 {% block content %}
-<div class="text-center py-5">
-    <h1 class="display-4 mb-4">AI Document Assistant</h1>
-    <p class="lead mb-4">Upload documents and chat with AI about your files</p>
-
-    {% if user.is_authenticated %}
-        <div class="d-flex justify-content-center gap-3">
-            <a href="{% url 'qna_app:chat' %}" class="btn btn-primary btn-lg">
-                <i class="fas fa-comments me-2"></i>Start Chat
-            </a>
-            <a href="{% url 'qna_app:upload' %}" class="btn btn-outline-primary btn-lg">
-                <i class="fas fa-upload me-2"></i>Upload Files
-            </a>
-        </div>
-    {% else %}
-        <div class="d-flex justify-content-center gap-3">
-            <a href="{% url 'login' %}" class="btn btn-primary btn-lg">
-                <i class="fas fa-sign-in-alt me-2"></i>Login
-            </a>
-            <a href="{% url 'qna_app:register' %}" class="btn btn-outline-primary btn-lg">
-                <i class="fas fa-user-plus me-2"></i>Register
-            </a>
-        </div>
-    {% endif %}
-
-    <div class="row mt-5">
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
-                    <h5>PDF Documents</h5>
-                    <p>Upload and analyze PDF files with AI</p>
+<!-- Hero Section -->
+<section class="relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white overflow-hidden">
+    <!-- Background Pattern -->
+    <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+    <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Ccircle cx="30" cy="30" r="1"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+    
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+        <div class="text-center">
+            <!-- Logo/Icon -->
+            <div class="mb-8">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-white bg-opacity-20 rounded-full mb-6">
+                    <i class="fas fa-brain text-4xl text-white"></i>
                 </div>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-table fa-3x text-success mb-3"></i>
-                    <h5>CSV Data</h5>
-                    <p>Query and analyze CSV files naturally</p>
-                </div>
+            
+            <!-- Main Heading -->
+            <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+                AI Document <span class="text-blue-200">Assistant</span>
+            </h1>
+            
+            <!-- Subtitle -->
+            <p class="text-xl md:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed">
+                Upload your documents and chat with AI to get instant insights, summaries, and answers from your PDFs, CSVs, and databases.
+            </p>
+            
+            <!-- CTA Buttons -->
+            {% if user.is_authenticated %}
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="{% url 'qna_app:chat' %}" 
+                   class="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-comments"></i>
+                    <span>Start Chatting</span>
+                </a>
+                <a href="{% url 'qna_app:upload' %}" 
+                   class="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-2">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Files</span>
+                </a>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-database fa-3x text-info mb-3"></i>
-                    <h5>SQL Databases</h5>
-                    <p>Connect and query database files</p>
+            {% else %}
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="{% url 'qna_app:register' %}" 
+                   class="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Get Started Free</span>
+                </a>
+                <a href="{% url 'login' %}" 
+                   class="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-2">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Sign In</span>
+                </a>
+            </div>
+            {% endif %}
+            
+            <!-- Stats or Trust Indicators -->
+            <div class="mt-12 flex flex-wrap justify-center items-center gap-8 text-blue-200">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-shield-alt"></i>
+                    <span class="text-sm">Secure & Private</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-bolt"></i>
+                    <span class="text-sm">Lightning Fast</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-brain"></i>
+                    <span class="text-sm">AI Powered</span>
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %} 
-                        and provide accurate, contextual answers.
+</section>
+
+<!-- Features Section -->
+<section class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Section Header -->
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                Powerful Features for Document Intelligence
+            </h2>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                Everything you need to transform how you work with documents and data
+            </p>
+        </div>
+        
+        <!-- Features Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- PDF Analysis -->
+            <div class="group">
+                <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 h-full">
+                    <div class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-red-500 transition-colors duration-300">
+                        <i class="fas fa-file-pdf text-2xl text-red-500 group-hover:text-white transition-colors duration-300"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">PDF Analysis</h3>
+                    <p class="text-gray-600 leading-relaxed">
+                        Upload and analyze PDF documents. Extract information, summarize content, and ask specific questions about your documents.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- CSV Data Insights -->
+            <div class="group">
+                <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 h-full">
+                    <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-green-500 transition-colors duration-300">
+                        <i class="fas fa-file-csv text-2xl text-green-500 group-hover:text-white transition-colors duration-300"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">CSV Data Insights</h3>
+                    <p class="text-gray-600 leading-relaxed">
+                        Upload CSV files and query your data using natural language. Get insights without writing complex formulas or scripts.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Database Queries -->
+            <div class="group">
+                <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 h-full">
+                    <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-blue-500 transition-colors duration-300">
+                        <i class="fas fa-database text-2xl text-blue-500 group-hover:text-white transition-colors duration-300"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Database Queries</h3>
+                    <p class="text-gray-600 leading-relaxed">
+                        Connect your SQL databases and query them using plain English. No SQL knowledge required to get the data you need.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Web Search -->
+            <div class="group">
+                <div class="bg-white border border-gray-200 rounded-2xl p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 h-full">
+                    <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-purple-500 transition-colors duration-300">
+                        <i class="fas fa-search text-2xl text-purple-500 group-hover:text-white transition-colors duration-300"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Intelligent Search</h3>
+                    <p class="text-gray-600 leading-relaxed">
+                        Get current information from the internet when your documents don't have the answers you need. Always up-to-date.
                     </p>
                 </div>
             </div>
         </div>
     </div>
+</section>
 
-    <!-- Features Section -->
-    <section id="features" class="py-5">
-        <div class="text-center mb-5">
-            <h2 class="display-5 fw-bold">Powerful Features</h2>
-            <p class="lead text-muted">Everything you need to work with documents intelligently</p>
+<!-- How It Works Section -->
+<section class="py-20 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Section Header -->
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                How It Works
+            </h2>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                Get started in just three simple steps
+            </p>
         </div>
         
-        <div class="row g-4">
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 text-center">
-                    <div class="card-body p-4">
-                        <div class="feature-icon bg-danger text-white mx-auto">
-                            <i class="fas fa-file-pdf"></i>
-                        </div>
-                        <h5 class="card-title">PDF Analysis</h5>
-                        <p class="card-text text-muted">
-                            Upload and analyze PDF documents. Extract information, 
-                            summarize content, and ask specific questions.
-                        </p>
+        <!-- Steps -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+            <!-- Step 1 -->
+            <div class="text-center">
+                <div class="relative">
+                    <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        <span class="text-2xl font-bold text-white">1</span>
                     </div>
+                    <!-- Connector Line (hidden on mobile) -->
+                    <div class="hidden md:block absolute top-10 left-1/2 transform translate-x-full w-full h-0.5 bg-gray-300"></div>
                 </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-3">Upload Documents</h3>
+                <p class="text-gray-600 leading-relaxed">
+                    Securely upload your PDFs, CSV files, or SQL databases. Our system processes them quickly and safely.
+                </p>
             </div>
             
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 text-center">
-                    <div class="card-body p-4">
-                        <div class="feature-icon bg-success text-white mx-auto">
-                            <i class="fas fa-table"></i>
-                        </div>
-                        <h5 class="card-title">CSV Data Insights</h5>
-                        <p class="card-text text-muted">
-                            Upload CSV files and query your data using natural language. 
-                            Get insights without writing complex formulas.
-                        </p>
+            <!-- Step 2 -->
+            <div class="text-center">
+                <div class="relative">
+                    <div class="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        <span class="text-2xl font-bold text-white">2</span>
                     </div>
+                    <!-- Connector Line (hidden on mobile) -->
+                    <div class="hidden md:block absolute top-10 left-1/2 transform translate-x-full w-full h-0.5 bg-gray-300"></div>
                 </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-3">Ask Questions</h3>
+                <p class="text-gray-600 leading-relaxed">
+                    Use natural language to ask questions about your documents or request general information. No technical knowledge required.
+                </p>
             </div>
             
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 text-center">
-                    <div class="card-body p-4">
-                        <div class="feature-icon bg-info text-white mx-auto">
-                            <i class="fas fa-database"></i>
-                        </div>
-                        <h5 class="card-title">Database Queries</h5>
-                        <p class="card-text text-muted">
-                            Connect your SQL databases and query them using plain English. 
-                            No SQL knowledge required.
-                        </p>
-                    </div>
+            <!-- Step 3 -->
+            <div class="text-center">
+                <div class="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <span class="text-2xl font-bold text-white">3</span>
                 </div>
-            </div>
-            
-            <div class="col-md-6 col-lg-3">
-                <div class="card h-100 text-center">
-                    <div class="card-body p-4">
-                        <div class="feature-icon bg-warning text-white mx-auto">
-                            <i class="fas fa-search"></i>
-                        </div>
-                        <h5 class="card-title">Web Search</h5>
-                        <p class="card-text text-muted">
-                            Get current information from the internet when your documents 
-                            don't have the answers you need.
-                        </p>
-                    </div>
-                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-3">Get Intelligent Answers</h3>
+                <p class="text-gray-600 leading-relaxed">
+                    Receive accurate, contextual answers powered by advanced AI technology. Get insights you never knew were possible.
+                </p>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- How It Works -->
-    <section class="py-5 bg-light rounded-3 my-5">
-        <div class="container">
-            <div class="text-center mb-5">
-                <h2 class="display-5 fw-bold">How It Works</h2>
-                <p class="lead text-muted">Simple steps to get started</p>
+<!-- Benefits Section -->
+<section class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="lg:grid lg:grid-cols-2 lg:gap-16 lg:items-center">
+            <!-- Content -->
+            <div>
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+                    Why Choose Our AI Assistant?
+                </h2>
+                <p class="text-xl text-gray-600 mb-8">
+                    Experience the future of document processing with cutting-edge AI technology that understands your needs.
+                </p>
+                
+                <!-- Benefits List -->
+                <div class="space-y-6">
+                    <div class="flex items-start space-x-4">
+                        <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                            <i class="fas fa-check text-white text-xs"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-1">Instant Processing</h3>
+                            <p class="text-gray-600">Upload and process documents in seconds, not hours. Get immediate access to your data.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start space-x-4">
+                        <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                            <i class="fas fa-check text-white text-xs"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-1">Natural Language Interface</h3>
+                            <p class="text-gray-600">Ask questions in plain English. No need to learn complex query languages or syntax.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start space-x-4">
+                        <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                            <i class="fas fa-check text-white text-xs"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-1">Secure & Private</h3>
+                            <p class="text-gray-600">Your documents are processed securely and never stored permanently. Complete privacy guaranteed.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start space-x-4">
+                        <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                            <i class="fas fa-check text-white text-xs"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-1">Multiple File Formats</h3>
+                            <p class="text-gray-600">Support for PDFs, CSV files, and various database formats. One platform for all your needs.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            <div class="row g-4">
-                <div class="col-md-4 text-center">
-                    <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <span class="fs-3 fw-bold">1</span>
+            <!-- Visual/Illustration -->
+            <div class="mt-12 lg:mt-0">
+                <div class="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-8 lg:p-12 text-center text-white">
+                    <div class="mb-6">
+                        <i class="fas fa-magic text-6xl text-blue-200"></i>
                     </div>
-                    <h5 class="mt-3">Upload Documents</h5>
-                    <p class="text-muted">Upload your PDFs, CSV files, or SQL databases securely to our platform.</p>
-                </div>
-                
-                <div class="col-md-4 text-center">
-                    <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <span class="fs-3 fw-bold">2</span>
+                    <h3 class="text-2xl font-bold mb-4">Powered by Advanced AI</h3>
+                    <p class="text-blue-100 mb-6">
+                        Our state-of-the-art AI technology understands context, extracts meaning, and provides intelligent responses to your queries.
+                    </p>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                            <div class="font-semibold">99.9%</div>
+                            <div class="text-blue-200">Accuracy Rate</div>
+                        </div>
+                        <div class="bg-white bg-opacity-20 rounded-lg p-4">
+                            <div class="font-semibold">&lt;2s</div>
+                            <div class="text-blue-200">Response Time</div>
+                        </div>
                     </div>
-                    <h5 class="mt-3">Ask Questions</h5>
-                    <p class="text-muted">Use natural language to ask questions about your documents or general topics.</p>
-                </div>
-                
-                <div class="col-md-4 text-center">
-                    <div class="rounded-circle bg-info text-white d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                        <span class="fs-3 fw-bold">3</span>
-                    </div>
-                    <h5 class="mt-3">Get Answers</h5>
-                    <p class="text-muted">Receive intelligent, accurate answers powered by advanced AI technology.</p>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- CTA Section -->
-    <section class="text-center py-5">
-        <div class="card bg-primary text-white">
-            <div class="card-body p-5">
-                <h2 class="card-title">Ready to Transform Your Document Workflow?</h2>
-                <p class="card-text lead">Join thousands of users who are already experiencing the power of AI-driven document analysis.</p>
-                <div class="d-flex justify-content-center gap-3 mt-4">
-                    <a href="{% url 'qna_app:register' %}" class="btn btn-light btn-lg px-4">
-                        <i class="fas fa-user-plus me-2"></i>Sign Up Free
-                    </a>
-                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-4">
-                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
-                    </a>
+<!-- CTA Section -->
+{% if not user.is_authenticated %}
+<section class="py-20 bg-gradient-to-r from-blue-600 to-purple-700">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+            Ready to Transform Your Document Workflow?
+        </h2>
+        <p class="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            Join thousands of users who are already experiencing the power of AI-driven document analysis. Get started for free today.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <a href="{% url 'qna_app:register' %}" 
+               class="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                <i class="fas fa-user-plus"></i>
+                <span>Sign Up Free</span>
+            </a>
+            <a href="{% url 'login' %}" 
+               class="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-2">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Sign In</span>
+            </a>
+        </div>
+        
+        <!-- Additional Trust Signals -->
+        <div class="mt-12 pt-8 border-t border-blue-400 border-opacity-30">
+            <p class="text-blue-200 text-sm mb-4">Trusted by professionals worldwide</p>
+            <div class="flex flex-wrap justify-center items-center gap-8 text-blue-200 text-sm">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-lock"></i>
+                    <span>Enterprise Security</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-cloud"></i>
+                    <span>Cloud Powered</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-support"></i>
+                    <span>24/7 Support</span>
                 </div>
             </div>
         </div>
-    </section>
-</div>
+    </div>
+</section>
+{% endif %}
 {% endblock %}

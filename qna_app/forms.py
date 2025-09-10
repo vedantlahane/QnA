@@ -14,7 +14,7 @@ class FileUploadForm(forms.ModelForm):
         fields = ['file']
         widgets = {
             'file': forms.FileInput(attrs={
-                'class': 'form-control',
+                'class': 'block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
                 'accept': '.pdf,.csv,.sql,.db,.sqlite,.sqlite3',
                 'id': 'file-upload-input'
             })
@@ -89,7 +89,7 @@ class ChatForm(forms.Form):
     
     message = forms.CharField(
         widget=forms.Textarea(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none',
             'rows': 3,
             'placeholder': 'Ask me anything about your uploaded documents or general questions...',
             'id': 'id_message'
@@ -119,10 +119,10 @@ class FeedbackForm(forms.ModelForm):
         widgets = {
             'user_rating': forms.Select(
                 choices=[(i, f"{i} Star{'s' if i != 1 else ''}") for i in range(1, 6)],
-                attrs={'class': 'form-select'}
+                attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}
             ),
             'user_feedback': forms.Textarea(attrs={
-                'class': 'form-control',
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none',
                 'rows': 3,
                 'placeholder': 'Optional: Tell us how we can improve...'
             })
@@ -141,7 +141,7 @@ class FileSearchForm(forms.Form):
         max_length=200,
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
             'placeholder': 'Search files by name...',
             'id': 'file-search-input'
         })
@@ -150,13 +150,13 @@ class FileSearchForm(forms.Form):
     file_type = forms.ChoiceField(
         choices=[('', 'All Types')] + UploadedFile.FILE_TYPE_CHOICES,
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'})
     )
     
     status = forms.ChoiceField(
         choices=[('', 'All Status')] + UploadedFile.STATUS_CHOICES,
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'})
     )
 
 
@@ -167,7 +167,7 @@ class ConversationSearchForm(forms.Form):
         max_length=200,
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
             'placeholder': 'Search conversations...',
             'id': 'conversation-search-input'
         })
@@ -176,7 +176,7 @@ class ConversationSearchForm(forms.Form):
     date_from = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
             'type': 'date'
         })
     )
@@ -184,7 +184,7 @@ class ConversationSearchForm(forms.Form):
     date_to = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
             'type': 'date'
         })
     )
@@ -192,5 +192,5 @@ class ConversationSearchForm(forms.Form):
     min_rating = forms.ChoiceField(
         choices=[('', 'Any Rating')] + [(i, f"{i}+ Stars") for i in range(1, 6)],
         required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'})
     )

@@ -3,151 +3,269 @@
 {% block title %}Chat - AI Document Assistant{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
+<div class="h-full max-h-screen" x-data="chatApp()">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
         <!-- Main Chat Area -->
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <h5 class="mb-0">
-                            <i class="fas fa-robot me-2"></i>AI Assistant
-                        </h5>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-success">Online</span>
-                            <button class="btn btn-sm btn-outline-light" onclick="clearChat()">
-                                <i class="fas fa-trash me-1"></i>Clear
+        <div class="lg:col-span-3 flex flex-col h-full">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full">
+                <!-- Chat Header -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-robot text-white"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-semibold">AI Assistant</h2>
+                                <p class="text-blue-100 text-sm">Ready to help with your documents</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <span class="text-sm text-blue-100">Online</span>
+                            </div>
+                            <button @click="clearChat()" 
+                                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-lg transition-colors text-sm">
+                                <i class="fas fa-trash mr-1"></i>Clear
                             </button>
                         </div>
                     </div>
                 </div>
-                
-                <div class="card-body p-0">
-                    <!-- Quick Actions -->
-                    <div class="p-3 border-bottom">
-                        <div class="quick-actions">
-                            <button class="quick-action-btn" onclick="sendQuickMessage('What files do I have uploaded?')">
-                                <i class="fas fa-file me-1"></i>My Files
-                            </button>
-                            <button class="quick-action-btn" onclick="sendQuickMessage('Summarize my latest document')">
-                                <i class="fas fa-compress-alt me-1"></i>Summarize
-                            </button>
-                            <button class="quick-action-btn" onclick="sendQuickMessage('What are the latest technology trends?')">
-                                <i class="fas fa-search me-1"></i>Tech Trends
-                            </button>
-                            <button class="quick-action-btn" onclick="sendQuickMessage('Help me analyze my data')">
-                                <i class="fas fa-chart-line me-1"></i>Data Analysis
-                            </button>
+
+                <!-- Quick Actions -->
+                <div class="p-4 bg-gray-50 border-b border-gray-200">
+                    <div class="flex flex-wrap gap-2">
+                        <button @click="sendQuickMessage('What files do I have uploaded?')" 
+                                class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1">
+                            <i class="fas fa-file text-blue-600"></i>
+                            <span>My Files</span>
+                        </button>
+                        <button @click="sendQuickMessage('Summarize my latest document')" 
+                                class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1">
+                            <i class="fas fa-compress-alt text-green-600"></i>
+                            <span>Summarize</span>
+                        </button>
+                        <button @click="sendQuickMessage('What are the latest technology trends?')" 
+                                class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1">
+                            <i class="fas fa-search text-purple-600"></i>
+                            <span>Tech Trends</span>
+                        </button>
+                        <button @click="sendQuickMessage('Help me analyze my data')" 
+                                class="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1">
+                            <i class="fas fa-chart-line text-orange-600"></i>
+                            <span>Data Analysis</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div class="flex-1 overflow-y-auto p-4 space-y-4" id="chat-container">
+                    {% if not recent_conversations %}
+                    <div class="text-center py-12">
+                        <div class="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-comments text-blue-600 text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-2">Start a Conversation</h3>
+                        <p class="text-gray-600 max-w-md mx-auto">Ask me anything about your uploaded documents or general questions! I'm here to help.</p>
+                    </div>
+                    {% else %}
+                    {% for conversation in recent_conversations %}
+                    <!-- User Message -->
+                    <div class="flex justify-end">
+                        <div class="max-w-lg">
+                            <div class="bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2">
+                                <p class="text-sm">{{ conversation.user_message }}</p>
+                            </div>
+                            <div class="text-right mt-1">
+                                <span class="text-xs text-gray-500">{{ conversation.created_at|date:"H:i" }}</span>
+                            </div>
                         </div>
                     </div>
-                    
-                    <!-- Chat Messages -->
-                    <div class="chat-container" id="chat-container">
-                        {% if not recent_conversations %}
-                            <div class="text-center text-muted py-5">
-                                <i class="fas fa-comments fa-3x mb-3"></i>
-                                <h5>Start a Conversation</h5>
-                                <p>Ask me anything about your uploaded documents or general questions!</p>
+
+                    <!-- Agent Response -->
+                    <div class="flex justify-start">
+                        <div class="flex space-x-2 max-w-lg">
+                            <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-robot text-gray-600 text-sm"></i>
                             </div>
-                        {% else %}
-                            {% for conversation in recent_conversations reversed %}
-                                <div class="message user">
-                                    <strong>You:</strong><br>
-                                    {{ conversation.user_message }}
+                            <div>
+                                <div class="bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md px-4 py-2">
+                                    <p class="text-sm whitespace-pre-wrap">{{ conversation.agent_response }}</p>
                                 </div>
-                                <div class="message agent">
-                                    <strong><i class="fas fa-robot me-1"></i>Assistant:</strong><br>
-                                    {{ conversation.agent_response|linebreaks }}
+                                <div class="mt-1 flex items-center space-x-2">
+                                    <span class="text-xs text-gray-500">{{ conversation.created_at|date:"H:i" }}</span>
+                                    {% if conversation.response_time_ms %}
+                                    <span class="text-xs text-gray-400">• {{ conversation.response_time_ms }}ms</span>
+                                    {% endif %}
                                 </div>
-                            {% endfor %}
-                        {% endif %}
-                        
-                        <!-- Typing Indicator -->
-                        <div class="typing-indicator" id="typing-indicator">
-                            <div class="typing-dots">
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
                             </div>
-                            <small class="text-muted">AI is typing...</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    <!-- Loading indicator -->
+                    <div x-show="loading" class="flex justify-start">
+                        <div class="flex space-x-2 max-w-lg">
+                            <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                                <i class="fas fa-robot text-gray-600 text-sm"></i>
+                            </div>
+                            <div class="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2">
+                                <div class="flex space-x-1">
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <div class="card-footer">
-                    <form id="chat-form" method="post" novalidate>
-                        {% csrf_token %}
-                        <div class="input-group">
-                            <textarea class="form-control" id="id_message" name="message" rows="2" 
-                                      placeholder="Ask me anything about your uploaded documents or general questions..." 
-                                      maxlength="2000" required></textarea>
-                            <button type="submit" class="btn btn-primary" id="send-button">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
+
+                <!-- Chat Input -->
+                <div class="border-t border-gray-200 p-4">
+                    <form @submit.prevent="sendMessage()" class="flex space-x-3">
+                        <div class="flex-1">
+                            <textarea x-model="message" 
+                                      @keydown.enter.prevent="sendMessage()"
+                                      @keydown.shift.enter.prevent="message += '\n'"
+                                      placeholder="Ask me anything about your documents..."
+                                      class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                      rows="2"></textarea>
                         </div>
-                        <div class="form-text">Maximum 2000 characters</div>
+                        <button type="submit" 
+                                :disabled="!message.trim() || loading"
+                                class="bg-blue-600 text-white rounded-lg px-6 py-2 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2">
+                            <i class="fas fa-paper-plane"></i>
+                            <span class="hidden sm:block">Send</span>
+                        </button>
                     </form>
+                    <p class="text-xs text-gray-500 mt-2">Press Enter to send, Shift+Enter for new line</p>
                 </div>
             </div>
         </div>
-        
+
         <!-- Sidebar -->
-        <div class="col-lg-4">
-            <!-- System Status -->
-            <div class="card sidebar mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Status</h6>
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Upload Status -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-upload text-blue-600 mr-2"></i>
+                    Your Files
+                </h3>
+                {% if uploaded_files %}
+                <div class="space-y-3">
+                    {% for file in uploaded_files|slice:":5" %}
+                    <div class="flex items-center space-x-3 p-2 rounded-lg border border-gray-200">
+                        <div class="flex-shrink-0">
+                            {% if file.file_type == 'pdf' %}
+                            <i class="fas fa-file-pdf text-red-500"></i>
+                            {% elif file.file_type == 'csv' %}
+                            <i class="fas fa-file-csv text-green-500"></i>
+                            {% else %}
+                            <i class="fas fa-database text-blue-500"></i>
+                            {% endif %}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">{{ file.original_filename }}</p>
+                            <div class="flex items-center space-x-2">
+                                {% if file.status == 'completed' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check mr-1"></i>Ready
+                                </span>
+                                {% elif file.status == 'processing' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-spinner fa-spin mr-1"></i>Processing
+                                </span>
+                                {% elif file.status == 'failed' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                    <i class="fas fa-exclamation mr-1"></i>Failed
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                    <i class="fas fa-clock mr-1"></i>Pending
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span>System:</span>
-                        <span class="badge bg-success">Online</span>
+                <div class="mt-4">
+                    <a href="{% url 'qna_app:upload' %}" 
+                       class="block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        Upload More Files
+                    </a>
+                </div>
+                {% else %}
+                <div class="text-center py-6">
+                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-upload text-gray-400"></i>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">No files uploaded yet</p>
+                    <a href="{% url 'qna_app:upload' %}" 
+                       class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <i class="fas fa-plus mr-1"></i>Upload your first file
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- System Status -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-server text-green-600 mr-2"></i>
+                    System Status
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">AI Agent</span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <div class="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                            Online
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Document Processing</span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <div class="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                            Active
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Search Engine</span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <div class="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                            Ready
+                        </span>
                     </div>
                 </div>
             </div>
-            
-            <!-- Uploaded Files -->
-            <div class="card sidebar">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="fas fa-file me-2"></i>Your Files</h6>
-                    <a href="{% url 'qna_app:upload' %}" class="btn btn-sm btn-primary">
-                        <i class="fas fa-plus"></i>
-                    </a>
-                </div>
-                <div class="card-body">
-                    {% if uploaded_files %}
-                        <div class="list-group list-group-flush">
-                            {% for file in uploaded_files|slice:":5" %}
-                                <div class="list-group-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1">{{ file.original_filename|truncatechars:25 }}</h6>
-                                            <small class="text-muted">
-                                                <i class="fas fa-{% if file.file_type == 'pdf' %}file-pdf{% elif file.file_type == 'csv' %}table{% else %}database{% endif %} me-1"></i>
-                                                {{ file.get_file_size_display }}
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        {% if uploaded_files.count > 5 %}
-                            <div class="text-center mt-3">
-                                <a href="{% url 'qna_app:upload' %}" class="btn btn-sm btn-outline-primary">
-                                    View All ({{ uploaded_files.count }})
-                                </a>
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="text-center text-muted py-3">
-                            <i class="fas fa-upload fa-2x mb-2"></i>
-                            <p class="mb-2">No files uploaded yet</p>
-                            <a href="{% url 'qna_app:upload' %}" class="btn btn-sm btn-primary">
-                                Upload First File
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
+
+            <!-- Quick Help -->
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                    Quick Tips
+                </h3>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Upload PDFs, CSVs, or databases to analyze</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Ask specific questions about your data</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Use quick actions for common tasks</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Ask for summaries or insights</span>
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
@@ -156,165 +274,132 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const chatContainer = document.getElementById('chat-container');
-    const chatForm = document.getElementById('chat-form');
-    const messageInput = document.getElementById('id_message');
-    const sendButton = document.getElementById('send-button');
-    const typingIndicator = document.getElementById('typing-indicator');
-    
-    // Auto-scroll to bottom
-    function scrollToBottom() {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-    
-    // Initially scroll to bottom
-    scrollToBottom();
-    
-    // Handle form submission
-    chatForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
+function chatApp() {
+    return {
+        message: '',
+        loading: false,
         
-        const message = messageInput.value.trim();
-        if (!message) return;
-        
-        // Disable form
-        sendButton.disabled = true;
-        sendButton.innerHTML = '<div class="loading"></div>';
-        messageInput.disabled = true;
-        
-        // Add user message to chat
-        addMessage(message, 'user');
-        messageInput.value = '';
-        
-        // Show typing indicator
-        typingIndicator.style.display = 'flex';
-        scrollToBottom();
-        
-        try {
-            // Get CSRF token
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-            const csrfValue = csrfToken ? csrfToken.value : '';
+        sendMessage() {
+            if (!this.message.trim() || this.loading) return;
             
-            if (!csrfValue) {
-                console.error('CSRF token not found');
-                throw new Error('CSRF token not found');
-            }
+            const userMessage = this.message.trim();
+            this.message = '';
+            this.loading = true;
             
-            // Get API URL
-            const apiUrl = '{% url "qna_app:api_chat" %}';
-            console.log('API URL:', apiUrl);
+            // Add user message to chat
+            this.addMessage(userMessage, 'user');
             
-            // Send message via API
-            const response = await fetch(apiUrl, {
+            // Send to API
+            fetch('{% url "qna_app:api_chat" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfValue,
+                    'X-CSRFToken': this.getCsrfToken()
                 },
-                body: JSON.stringify({ message: message })
+                body: JSON.stringify({ message: userMessage })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.loading = false;
+                if (data.success) {
+                    this.addMessage(data.response, 'agent');
+                } else {
+                    this.addMessage('Sorry, I encountered an error: ' + (data.error || 'Unknown error'), 'agent');
+                    showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                this.loading = false;
+                console.error('Error:', error);
+                this.addMessage('Sorry, I encountered a connection error. Please try again.', 'agent');
+                showToast('Connection error. Please try again.', 'error');
             });
+        },
+        
+        sendQuickMessage(message) {
+            this.message = message;
+            this.sendMessage();
+        },
+        
+        addMessage(content, type) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageDiv = document.createElement('div');
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('HTTP error:', response.status, errorText);
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-            }
-            
-            const data = await response.json();
-            console.log('API response:', data);
-            
-            // Hide typing indicator
-            typingIndicator.style.display = 'none';
-            
-            if (data.success) {
-                addMessage(data.response, 'agent');
-                showToast('Message sent successfully!', 'success');
+            if (type === 'user') {
+                messageDiv.className = 'flex justify-end';
+                messageDiv.innerHTML = `
+                    <div class="max-w-lg">
+                        <div class="bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2">
+                            <p class="text-sm">${this.escapeHtml(content)}</p>
+                        </div>
+                        <div class="text-right mt-1">
+                            <span class="text-xs text-gray-500">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    </div>
+                `;
             } else {
-                addMessage('Sorry, I encountered an error: ' + (data.error || 'Unknown error'), 'agent');
-                showToast('Error generating response', 'danger');
+                messageDiv.className = 'flex justify-start';
+                messageDiv.innerHTML = `
+                    <div class="flex space-x-2 max-w-lg">
+                        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-robot text-gray-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <div class="bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md px-4 py-2">
+                                <p class="text-sm whitespace-pre-wrap">${this.escapeHtml(content)}</p>
+                            </div>
+                            <div class="mt-1">
+                                <span class="text-xs text-gray-500">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
             
-        } catch (error) {
-            typingIndicator.style.display = 'none';
-            console.error('Chat error:', error);
-            addMessage('Sorry, there was a connection error. Please check your internet connection and try again.', 'agent');
-            showToast('Connection error - please try again', 'danger');
+            // Remove welcome message if exists
+            const welcomeMessage = chatContainer.querySelector('.text-center.py-12');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        },
+        
+        clearChat() {
+            if (confirm('Are you sure you want to clear the current chat session?')) {
+                // Clear via form submission
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{% url "qna_app:chat" %}';
+                
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = this.getCsrfToken();
+                
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = 'clear_session';
+                
+                form.appendChild(csrfInput);
+                form.appendChild(actionInput);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        },
+        
+        getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+        },
+        
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
-        
-        // Re-enable form
-        sendButton.disabled = false;
-        sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
-        messageInput.disabled = false;
-        messageInput.focus();
-    });
-    
-    // Add message to chat
-    function addMessage(content, type) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type}`;
-        
-        const icon = type === 'agent' ? '<i class="fas fa-robot me-1"></i>' : '';
-        const label = type === 'agent' ? 'Assistant' : 'You';
-        
-        messageDiv.innerHTML = `
-            <strong>${icon}${label}:</strong><br>
-            ${content.replace(/\n/g, '<br>')}
-        `;
-        
-        chatContainer.appendChild(messageDiv);
-        scrollToBottom();
     }
-    
-    // Quick message function
-    window.sendQuickMessage = function(message) {
-        messageInput.value = message;
-        messageInput.focus();
-        // Trigger form submission
-        setTimeout(() => {
-            chatForm.dispatchEvent(new Event('submit'));
-        }, 100);
-    };
-    
-    // Clear chat function
-    window.clearChat = function() {
-        if (confirm('Are you sure you want to clear the chat? This will start a new session.')) {
-            // Clear messages except welcome message
-            const messages = chatContainer.querySelectorAll('.message');
-            messages.forEach(msg => msg.remove());
-            
-            // Add welcome message
-            const welcomeDiv = document.createElement('div');
-            welcomeDiv.className = 'text-center text-muted py-5';
-            welcomeDiv.innerHTML = `
-                <i class="fas fa-comments fa-3x mb-3"></i>
-                <h5>New Conversation Started</h5>
-                <p>Ask me anything about your uploaded documents or general questions!</p>
-            `;
-            chatContainer.appendChild(welcomeDiv);
-            
-            // Clear session
-            fetch('{% url "qna_app:chat" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                },
-                body: 'action=clear_session'
-            });
-            
-            showToast('Chat cleared', 'info');
-        }
-    };
-    
-    // Auto-resize textarea
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
-    });
-    
-    // Focus on message input
-    messageInput.focus();
-});
+}
 </script>
 {% endblock %}

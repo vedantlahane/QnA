@@ -1,125 +1,256 @@
 <!DOCTYPE html>
 {% load static %}
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AI Assistant{% endblock %}</title>
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-
-    <!-- Custom CSS -->
-    <link href="{% static 'css/style.css' %}" rel="stylesheet">
-
+    <title>{% block title %}AI Document Assistant{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    {% load tailwind_tags %}
+    {% tailwind_css %}
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Alpine.js for interactive components -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="h-full bg-gray-50 flex flex-col">
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'qna_app:index' %}">
-                <i class="fas fa-brain me-2"></i>AI Assistant
-            </a>
-
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse" id="navbarNav">
-                                <ul class="navbar-nav me-auto">
+    <nav class="bg-white shadow-lg border-b border-gray-200" x-data="{ mobileMenuOpen: false, userMenuOpen: false }">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- Left side - Logo and main nav -->
+                <div class="flex items-center">
+                    <a href="{% url 'qna_app:index' %}" class="flex items-center space-x-2 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
+                        <div class="bg-blue-600 p-2 rounded-lg">
+                            <i class="fas fa-brain text-white"></i>
+                        </div>
+                        <span>AI Assistant</span>
+                    </a>
+                    
                     {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'qna_app:chat' %}">
-                                <i class="fas fa-comments me-1"></i>Chat
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'qna_app:upload' %}">
-                                <i class="fas fa-upload me-1"></i>Upload
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'qna_app:conversation_history' %}">
-                                <i class="fas fa-history me-1"></i>History
-                            </a>
-                        </li>
+                    <!-- Desktop Navigation -->
+                    <div class="hidden md:flex ml-10 space-x-8">
+                        <a href="{% url 'qna_app:chat' %}" 
+                           class="flex items-center space-x-1 text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            <i class="fas fa-comments"></i>
+                            <span>Chat</span>
+                        </a>
+                        <a href="{% url 'qna_app:upload' %}" 
+                           class="flex items-center space-x-1 text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            <i class="fas fa-upload"></i>
+                            <span>Upload</span>
+                        </a>
+                        <a href="{% url 'qna_app:conversation_history' %}" 
+                           class="flex items-center space-x-1 text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            <i class="fas fa-history"></i>
+                            <span>History</span>
+                        </a>
+                    </div>
                     {% endif %}
-                </ul>
+                </div>
 
-                <ul class="navbar-nav">
+                <!-- Right side - User menu or auth links -->
+                <div class="flex items-center">
                     {% if user.is_authenticated %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                                <i class="fas fa-user me-1"></i>{{ user.username }}
+                    <!-- User Menu -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" 
+                                class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <span class="hidden md:block">{{ user.username }}</span>
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        
+                        <!-- Dropdown Menu -->
+                        <div x-show="open" 
+                             @click.away="open = false"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 transform scale-95"
+                             x-transition:enter-end="opacity-100 transform scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 transform scale-100"
+                             x-transition:leave-end="opacity-0 transform scale-95"
+                             class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                            <a href="{% url 'qna_app:profile' %}" 
+                               class="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-user"></i>
+                                <span>Profile</span>
                             </a>
-                                                        <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'qna_app:profile' %}">
-                                    <i class="fas fa-user me-2"></i>Profile
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'logout' %}">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                </a></li>
-                            </ul>
-                        </li>
+                            <a href="{% url 'logout' %}" 
+                               class="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Logout</span>
+                            </a>
+                        </div>
+                    </div>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Login</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'qna_app:register' %}">Register</a>
-                        </li>
+                    <!-- Auth Links -->
+                    <div class="flex space-x-4">
+                        <a href="{% url 'login' %}" 
+                           class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            Login
+                        </a>
+                        <a href="{% url 'qna_app:register' %}" 
+                           class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                            Register
+                        </a>
+                    </div>
                     {% endif %}
-                </ul>
+                    
+                    <!-- Mobile menu button -->
+                    {% if user.is_authenticated %}
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" 
+                            class="md:hidden ml-4 p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
+
+        <!-- Mobile menu -->
+        {% if user.is_authenticated %}
+        <div x-show="mobileMenuOpen" 
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 transform -translate-y-2"
+             x-transition:enter-end="opacity-100 transform translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 transform translate-y-0"
+             x-transition:leave-end="opacity-0 transform -translate-y-2"
+             class="md:hidden border-t border-gray-200 bg-white">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="{% url 'qna_app:chat' %}" 
+                   class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium">
+                    <i class="fas fa-comments"></i>
+                    <span>Chat</span>
+                </a>
+                <a href="{% url 'qna_app:upload' %}" 
+                   class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload</span>
+                </a>
+                <a href="{% url 'qna_app:conversation_history' %}" 
+                   class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium">
+                    <i class="fas fa-history"></i>
+                    <span>History</span>
+                </a>
+            </div>
+        </div>
+        {% endif %}
     </nav>
 
+    <!-- Flash Messages -->
+    {% if messages %}
+    <div id="messages-container" class="fixed top-20 right-4 z-50 space-y-2">
+        {% for message in messages %}
+        <div class="bg-white border-l-4 {% if message.tags == 'error' %}border-red-500 bg-red-50{% elif message.tags == 'success' %}border-green-500 bg-green-50{% elif message.tags == 'warning' %}border-yellow-500 bg-yellow-50{% else %}border-blue-500 bg-blue-50{% endif %} p-4 rounded-md shadow-lg max-w-sm"
+             x-data="{ show: true }" 
+             x-show="show"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform translate-x-full"
+             x-transition:enter-end="opacity-100 transform translate-x-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform translate-x-0"
+             x-transition:leave-end="opacity-0 transform translate-x-full">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="{% if message.tags == 'error' %}fas fa-exclamation-circle text-red-500{% elif message.tags == 'success' %}fas fa-check-circle text-green-500{% elif message.tags == 'warning' %}fas fa-exclamation-triangle text-yellow-500{% else %}fas fa-info-circle text-blue-500{% endif %} mr-2"></i>
+                    <span class="text-sm font-medium text-gray-800">{{ message }}</span>
+                </div>
+                <button @click="show = false" class="ml-2 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Main Content -->
-    <main class="container py-4">
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="text-center text-sm text-gray-600">
+                © 2024 AI Document Assistant. Powered by advanced AI technology.
+            </div>
+        </div>
+    </footer>
 
-    <!-- Toast functionality -->
+    <!-- Toast notification function -->
     <script>
     function showToast(message, type = 'info') {
-        // Create toast container if it doesn't exist
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            toastContainer.style.zIndex = '9999';
-            document.body.appendChild(toastContainer);
-        }
+        const toastContainer = document.getElementById('toast-container') || (() => {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'fixed top-20 right-4 z-50 space-y-2';
+            document.body.appendChild(container);
+            return container;
+        })();
 
-        // Create toast element
         const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-white bg-${type} border-0`;
-        toast.setAttribute('role', 'alert');
+        const colorClasses = {
+            'success': 'border-green-500 bg-green-50 text-green-800',
+            'error': 'border-red-500 bg-red-50 text-red-800',
+            'warning': 'border-yellow-500 bg-yellow-50 text-yellow-800',
+            'info': 'border-blue-500 bg-blue-50 text-blue-800'
+        };
+        
+        const iconClasses = {
+            'success': 'fas fa-check-circle text-green-500',
+            'error': 'fas fa-exclamation-circle text-red-500',
+            'warning': 'fas fa-exclamation-triangle text-yellow-500',
+            'info': 'fas fa-info-circle text-blue-500'
+        };
+
+        toast.className = `bg-white border-l-4 ${colorClasses[type]} p-4 rounded-md shadow-lg max-w-sm transform translate-x-full`;
         toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="${iconClasses[type]} mr-2"></i>
+                    <span class="text-sm font-medium">${message}</span>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
         `;
 
-        // Add to container
         toastContainer.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+            toast.classList.add('translate-x-0');
+        }, 10);
 
-        // Initialize and show toast
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-
-        // Remove from DOM after hiding
-        toast.addEventListener('hidden.bs.toast', () => {
-            toast.remove();
-        });
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.add('translate-x-full');
+            setTimeout(() => toast.remove(), 200);
+        }, 5000);
     }
+    
+    // Auto-hide flash messages after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            const messages = document.querySelectorAll('#messages-container > div');
+            messages.forEach(msg => {
+                const hideButton = msg.querySelector('button[\\@click="show = false"]');
+                if (hideButton) hideButton.click();
+            });
+        }, 5000);
+    });
     </script>
 
     {% block extra_js %}{% endblock %}

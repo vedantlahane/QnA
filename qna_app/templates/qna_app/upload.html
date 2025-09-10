@@ -1,63 +1,464 @@
 {% extends 'qna_app/base.html' %}
 
-{% block title %}Upload Files{% endblock %}
+{% block title %}Upload Files - AI Document Assistant{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Upload Files</h5>
-            </div>
+<div class="max-w-6xl mx-auto" x-data="uploadApp()">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Upload Files</h1>
+        <p class="text-gray-600">Upload your documents to start analyzing them with AI assistance</p>
+    </div>
 
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="{{ form.file.id_for_label }}" class="form-label">Select File</label>
-                        {{ form.file }}
-                        <div class="form-text">
-                            Supported formats: PDF, CSV, SQL files (max 50MB)
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Upload Section -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                    <h2 class="text-xl font-semibold flex items-center">
+                        <i class="fas fa-cloud-upload-alt mr-2"></i>
+                        Upload New File
+                    </h2>
+                </div>
+
+                <div class="p-6">
+                    <!-- Drag and Drop Area -->
+                    <div class="mb-6">
+                        <div @drop="handleDrop($event)"
+                             @dragover.prevent
+                             @dragenter.prevent
+                             @dragleave="isDragOver = false"
+                             @dragover="isDragOver = true"
+                             :class="isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'"
+                             class="border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer hover:border-blue-400 hover:bg-blue-50"
+                             onclick="document.getElementById('file-input').click()">
+                            
+                            <div class="mb-4">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                            </div>
+                            
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">
+                                Drop files here or click to browse
+                            </h3>
+                            
+                            <p class="text-sm text-gray-600 mb-4">
+                                Supports PDF, CSV, and database files up to 50MB
+                            </p>
+                            
+                            <div class="flex items-center justify-center space-x-4 text-xs text-gray-500">
+                                <div class="flex items-center space-x-1">
+                                    <i class="fas fa-file-pdf text-red-500"></i>
+                                    <span>PDF</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <i class="fas fa-file-csv text-green-500"></i>
+                                    <span>CSV</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <i class="fas fa-database text-blue-500"></i>
+                                    <span>Database</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-upload me-2"></i>Upload File
-                    </button>
-                </form>
-            </div>
-        </div>
+                    <!-- Form Upload -->
+                    <form method="post" enctype="multipart/form-data" @submit="handleSubmit($event)">
+                        {% csrf_token %}
+                        <div class="hidden">
+                            <input type="file" 
+                                   id="file-input"
+                                   name="file"
+                                   @change="handleFileSelect($event)"
+                                   accept=".pdf,.csv,.sql,.db,.sqlite,.sqlite3"
+                                   class="hidden">
+                        </div>
 
-        {% if uploaded_files %}
-        <div class="card mt-4">
-            <div class="card-header">
-                <h6 class="mb-0">Your Files</h6>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    {% for file in uploaded_files %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">{{ file.original_filename }}</h6>
-                                <small class="text-muted">
-                                    {{ file.get_file_size_display }} • {{ file.get_status_display }}
-                                </small>
-                            </div>
-                            <div>
-                                {% if file.status == 'completed' %}
-                                    <span class="badge bg-success">Ready</span>
-                                {% elif file.status == 'processing' %}
-                                    <span class="badge bg-warning">Processing</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Failed</span>
-                                {% endif %}
+                        <!-- Selected File Display -->
+                        <div x-show="selectedFile" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <i :class="getFileIcon(selectedFile?.name)" class="text-blue-600"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-900" x-text="selectedFile?.name"></p>
+                                        <p class="text-sm text-gray-600" x-text="formatFileSize(selectedFile?.size)"></p>
+                                    </div>
+                                </div>
+                                <button type="button" 
+                                        @click="clearSelectedFile()"
+                                        class="text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
                         </div>
+
+                        <!-- Upload Button -->
+                        <button type="submit" 
+                                :disabled="!selectedFile || uploading"
+                                class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2">
+                            <template x-if="uploading">
+                                <div>
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                                    <span>Uploading...</span>
+                                </div>
+                            </template>
+                            <template x-if="!uploading">
+                                <div>
+                                    <i class="fas fa-upload mr-2"></i>
+                                    <span>Upload File</span>
+                                </div>
+                            </template>
+                        </button>
+                    </form>
+
+                    <!-- Upload Progress -->
+                    <div x-show="uploading" class="mt-4">
+                        <div class="bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                 :style="`width: ${uploadProgress}%`"></div>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2 text-center" x-text="`${uploadProgress}% uploaded`"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Management -->
+            {% if uploaded_files %}
+            <div class="bg-white rounded-xl shadow-lg mt-8 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold text-gray-900 flex items-center">
+                            <i class="fas fa-folder-open mr-2 text-blue-600"></i>
+                            Your Files
+                        </h2>
+                        <div class="flex items-center space-x-4">
+                            <!-- Search -->
+                            <form method="get" class="flex items-center space-x-2">
+                                <input type="text" 
+                                       name="search_query"
+                                       value="{{ search_form.search_query.value|default:'' }}"
+                                       placeholder="Search files..."
+                                       class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <select name="file_type" class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="">All Types</option>
+                                    <option value="pdf" {% if search_form.file_type.value == 'pdf' %}selected{% endif %}>PDF</option>
+                                    <option value="csv" {% if search_form.file_type.value == 'csv' %}selected{% endif %}>CSV</option>
+                                    <option value="sql" {% if search_form.file_type.value == 'sql' %}selected{% endif %}>Database</option>
+                                </select>
+                                <button type="submit" class="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-lg text-sm transition-colors">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divide-y divide-gray-200">
+                    {% for file in uploaded_files %}
+                    <div class="p-6 hover:bg-gray-50 transition-colors">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4 flex-1">
+                                <div class="w-12 h-12 rounded-lg flex items-center justify-center">
+                                    {% if file.file_type == 'pdf' %}
+                                    <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-pdf text-red-600 text-xl"></i>
+                                    </div>
+                                    {% elif file.file_type == 'csv' %}
+                                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-csv text-green-600 text-xl"></i>
+                                    </div>
+                                    {% else %}
+                                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-database text-blue-600 text-xl"></i>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="text-lg font-medium text-gray-900 truncate">{{ file.original_filename }}</h3>
+                                    <div class="flex items-center space-x-4 mt-1">
+                                        <span class="text-sm text-gray-600">{{ file.get_file_size_display }}</span>
+                                        <span class="text-sm text-gray-400">•</span>
+                                        <span class="text-sm text-gray-600">{{ file.uploaded_at|date:"M d, Y H:i" }}</span>
+                                        {% if file.response_time_ms %}
+                                        <span class="text-sm text-gray-400">•</span>
+                                        <span class="text-sm text-gray-600">Processed in {{ file.response_time_ms }}ms</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if file.processing_error %}
+                                    <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                        {{ file.processing_error }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center space-x-3">
+                                <!-- Status Badge -->
+                                {% if file.status == 'completed' %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check mr-1"></i>Ready
+                                </span>
+                                {% elif file.status == 'processing' %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-spinner fa-spin mr-1"></i>Processing
+                                </span>
+                                {% elif file.status == 'failed' %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    <i class="fas fa-exclamation mr-1"></i>Failed
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <i class="fas fa-clock mr-1"></i>Pending
+                                </span>
+                                {% endif %}
+                                
+                                <!-- Actions -->
+                                <div class="flex items-center space-x-1">
+                                    {% if file.status == 'completed' %}
+                                    <a href="{% url 'qna_app:chat' %}" 
+                                       class="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                                       title="Ask questions about this file">
+                                        <i class="fas fa-comments"></i>
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <form method="post" 
+                                          action="{% url 'qna_app:delete_file' file.file_id %}"
+                                          class="inline"
+                                          onsubmit="return confirm('Are you sure you want to delete this file?')">
+                                        {% csrf_token %}
+                                        <button type="submit" 
+                                                class="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                                title="Delete file">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if uploaded_files.has_other_pages %}
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-600">
+                            Showing {{ uploaded_files.start_index }} to {{ uploaded_files.end_index }} of {{ uploaded_files.paginator.count }} files
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {% if uploaded_files.has_previous %}
+                            <a href="?page={{ uploaded_files.previous_page_number }}" 
+                               class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors">
+                                Previous
+                            </a>
+                            {% endif %}
+                            
+                            <span class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">
+                                {{ uploaded_files.number }}
+                            </span>
+                            
+                            {% if uploaded_files.has_next %}
+                            <a href="?page={{ uploaded_files.next_page_number }}" 
+                               class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors">
+                                Next
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Upload Guidelines -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                    Upload Guidelines
+                </h3>
+                <ul class="space-y-3 text-sm text-gray-600">
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Maximum file size: 50MB</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Supported formats: PDF, CSV, SQL databases</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Processing typically takes 30-60 seconds</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <i class="fas fa-check text-green-500 mt-0.5 flex-shrink-0"></i>
+                        <span>Files are processed securely and privately</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- File Statistics -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-bar text-green-600 mr-2"></i>
+                    Your Statistics
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Total Files</span>
+                        <span class="font-semibold text-gray-900">{{ uploaded_files.paginator.count|default:0 }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Ready Files</span>
+                        <span class="font-semibold text-green-600">
+                            {{ uploaded_files|length|default:0 }}
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Storage Used</span>
+                        <span class="font-semibold text-gray-900">
+                            <!-- Calculate total size in template if needed -->
+                            -
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                    Quick Actions
+                </h3>
+                <div class="space-y-3">
+                    <a href="{% url 'qna_app:chat' %}" 
+                       class="block w-full bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-comments mr-2"></i>Start Chatting
+                    </a>
+                    <a href="{% url 'qna_app:conversation_history' %}" 
+                       class="block w-full bg-white text-blue-600 border border-blue-200 text-center py-2 px-4 rounded-lg hover:bg-blue-50 transition-colors">
+                        <i class="fas fa-history mr-2"></i>View History
+                    </a>
                 </div>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function uploadApp() {
+    return {
+        selectedFile: null,
+        isDragOver: false,
+        uploading: false,
+        uploadProgress: 0,
+        
+        handleDrop(event) {
+            event.preventDefault();
+            this.isDragOver = false;
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                this.selectFile(files[0]);
+            }
+        },
+        
+        handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                this.selectFile(files[0]);
+            }
+        },
+        
+        selectFile(file) {
+            // Validate file type
+            const allowedTypes = ['.pdf', '.csv', '.sql', '.db', '.sqlite', '.sqlite3'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!allowedTypes.includes(fileExtension)) {
+                showToast('Please select a valid file type (PDF, CSV, or Database)', 'error');
+                return;
+            }
+            
+            // Validate file size (50MB)
+            if (file.size > 50 * 1024 * 1024) {
+                showToast('File size must be less than 50MB', 'error');
+                return;
+            }
+            
+            this.selectedFile = file;
+            document.getElementById('file-input').files = event.target.files;
+        },
+        
+        clearSelectedFile() {
+            this.selectedFile = null;
+            document.getElementById('file-input').value = '';
+        },
+        
+        handleSubmit(event) {
+            if (!this.selectedFile) {
+                event.preventDefault();
+                showToast('Please select a file to upload', 'error');
+                return;
+            }
+            
+            this.uploading = true;
+            this.uploadProgress = 0;
+            
+            // Simulate upload progress
+            const progressInterval = setInterval(() => {
+                if (this.uploadProgress < 90) {
+                    this.uploadProgress += Math.random() * 10;
+                }
+            }, 200);
+            
+            // The form will submit normally, but we show progress
+            setTimeout(() => {
+                clearInterval(progressInterval);
+                this.uploadProgress = 100;
+            }, 3000);
+        },
+        
+        getFileIcon(filename) {
+            if (!filename) return 'fas fa-file';
+            
+            const extension = filename.split('.').pop().toLowerCase();
+            switch (extension) {
+                case 'pdf':
+                    return 'fas fa-file-pdf';
+                case 'csv':
+                    return 'fas fa-file-csv';
+                case 'sql':
+                case 'db':
+                case 'sqlite':
+                case 'sqlite3':
+                    return 'fas fa-database';
+                default:
+                    return 'fas fa-file';
+            }
+        },
+        
+        formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+    }
+}
+</script>
 {% endblock %}

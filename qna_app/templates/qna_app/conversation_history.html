@@ -1,147 +1,333 @@
 {% extends 'qna_app/base.html' %}
 
-{% block title %}Conversation History{% endblock %}
+{% block title %}Conversation History - AI Document Assistant{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-10 mx-auto">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Conversation History</h2>
-            <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>New Chat
-            </a>
+<div class="max-w-6xl mx-auto" x-data="historyApp()">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Conversation History</h1>
+            <p class="text-gray-600">Review your past conversations and insights</p>
         </div>
+        <a href="{% url 'qna_app:chat' %}" 
+           class="mt-4 sm:mt-0 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 w-fit">
+            <i class="fas fa-plus"></i>
+            <span>New Chat</span>
+        </a>
+    </div>
 
-        {% if conversations %}
-            <!-- Results Summary -->
-            <div class="mb-3">
-                <p class="text-muted">
-                    Showing {{ conversations|length }} of {{ total_conversations }} conversations
-                </p>
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <form method="get" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Search Query -->
+                <div>
+                    <label for="search_query" class="block text-sm font-medium text-gray-700 mb-2">
+                        Search Conversations
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" 
+                               name="search_query" 
+                               id="search_query"
+                               value="{{ search_form.search_query.value|default:'' }}"
+                               placeholder="Search messages..."
+                               class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <!-- Date From -->
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 mb-2">
+                        From Date
+                    </label>
+                    <input type="date" 
+                           name="date_from" 
+                           id="date_from"
+                           value="{{ search_form.date_from.value|default:'' }}"
+                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- Date To -->
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 mb-2">
+                        To Date
+                    </label>
+                    <input type="date" 
+                           name="date_to" 
+                           id="date_to"
+                           value="{{ search_form.date_to.value|default:'' }}"
+                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- Min Rating -->
+                <div>
+                    <label for="min_rating" class="block text-sm font-medium text-gray-700 mb-2">
+                        Minimum Rating
+                    </label>
+                    <select name="min_rating" 
+                            id="min_rating"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Any Rating</option>
+                        <option value="1" {% if search_form.min_rating.value == '1' %}selected{% endif %}>1+ Stars</option>
+                        <option value="2" {% if search_form.min_rating.value == '2' %}selected{% endif %}>2+ Stars</option>
+                        <option value="3" {% if search_form.min_rating.value == '3' %}selected{% endif %}>3+ Stars</option>
+                        <option value="4" {% if search_form.min_rating.value == '4' %}selected{% endif %}>4+ Stars</option>
+                        <option value="5" {% if search_form.min_rating.value == '5' %}selected{% endif %}>5 Stars</option>
+                    </select>
+                </div>
             </div>
 
-            <!-- Conversations List -->
-            {% for conversation in conversations %}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h5 class="card-title">
-                                Session: {{ conversation.session_id }}
-                                {% if conversation.user_rating %}
-                                    <span class="badge bg-warning ms-2">
-                                        <i class="fas fa-star me-1"></i>{{ conversation.user_rating }}/5
-                                    </span>
-                                {% endif %}
-                            </h5>
-                            <p class="card-text text-truncate">
-                                <strong>You:</strong> {{ conversation.get_short_user_message }}
-                            </p>
-                            <p class="card-text text-truncate">
-                                <strong>Agent:</strong> {{ conversation.agent_response|truncatechars:100 }}
-                            </p>
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <div class="flex gap-2">
+                    <button type="submit" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+                        <i class="fas fa-search"></i>
+                        <span>Search</span>
+                    </button>
+                    <a href="{% url 'qna_app:conversation_history' %}" 
+                       class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2">
+                        <i class="fas fa-times"></i>
+                        <span>Clear</span>
+                    </a>
+                </div>
+                {% if conversations %}
+                <div class="text-sm text-gray-600">
+                    Showing {{ conversations.start_index }} to {{ conversations.end_index }} of {{ total_conversations }} conversations
+                </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Conversations List -->
+    {% if conversations %}
+    <div class="space-y-6">
+        {% for conversation in conversations %}
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+            <!-- Conversation Header -->
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-comments text-blue-600 text-sm"></i>
                         </div>
-                        <div class="col-md-4 text-end">
-                            <small class="text-muted d-block">
-                                {{ conversation.created_at|date:"M d, Y H:i" }}
-                            </small>
-                            {% if conversation.response_time_ms %}
-                            <small class="text-muted d-block">
-                                Response time: {{ conversation.response_time_seconds|floatformat:2 }}s
-                            </small>
-                            {% endif %}
-                            <div class="mt-2">
-                                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewConversation('{{ conversation.id }}')">
-                                    <i class="fas fa-eye me-1"></i>View
-                                </button>
-                                <form method="post" action="{% url 'qna_app:rate_conversation' conversation.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <select name="user_rating" class="form-select form-select-sm d-inline-block w-auto me-1" onchange="this.form.submit()">
-                                        <option value="">Rate</option>
-                                        <option value="5" {% if conversation.user_rating == 5 %}selected{% endif %}>⭐⭐⭐⭐⭐</option>
-                                        <option value="4" {% if conversation.user_rating == 4 %}selected{% endif %}>⭐⭐⭐⭐</option>
-                                        <option value="3" {% if conversation.user_rating == 3 %}selected{% endif %}>⭐⭐⭐</option>
-                                        <option value="2" {% if conversation.user_rating == 2 %}selected{% endif %}>⭐⭐</option>
-                                        <option value="1" {% if conversation.user_rating == 1 %}selected{% endif %}>⭐</option>
-                                    </select>
-                                </form>
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-900">
+                                Session: {{ conversation.session_id|truncatechars:12 }}
+                            </h3>
+                            <p class="text-xs text-gray-500">{{ conversation.created_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <!-- Rating Display -->
+                        {% if conversation.user_rating %}
+                        <div class="flex items-center space-x-1">
+                            {% for i in "12345" %}
+                            <i class="fas fa-star text-sm {% if forloop.counter <= conversation.user_rating %}text-yellow-400{% else %}text-gray-300{% endif %}"></i>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Response Time -->
+                        {% if conversation.response_time_ms %}
+                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            {{ conversation.response_time_ms }}ms
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversation Content -->
+            <div class="p-6">
+                <!-- User Message -->
+                <div class="mb-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-user text-white text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="bg-blue-50 rounded-lg p-3">
+                                <p class="text-sm text-gray-900">{{ conversation.user_message }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            {% empty %}
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">No conversations found</h4>
-                    <p class="text-muted">Start a conversation to see your history here.</p>
-                    <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>Start Chatting
-                    </a>
+
+                <!-- Agent Response -->
+                <div class="mb-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-robot text-gray-600 text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="bg-gray-100 rounded-lg p-3">
+                                <div x-data="{ expanded: false }">
+                                    <p class="text-sm text-gray-900 whitespace-pre-wrap" 
+                                       :class="{ 'line-clamp-3': !expanded }"
+                                       x-text="expanded ? '{{ conversation.agent_response|escapejs }}' : '{{ conversation.agent_response|truncatechars:200|escapejs }}'"></p>
+                                    {% if conversation.agent_response|length > 200 %}
+                                    <button @click="expanded = !expanded" 
+                                            class="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2">
+                                        <span x-text="expanded ? 'Show Less' : 'Show More'"></span>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            {% endfor %}
 
-            <!-- Pagination -->
-            {% if conversations.has_other_pages %}
-            <nav aria-label="Conversation pagination" class="mt-4">
-                <ul class="pagination justify-content-center">
-                    {% if conversations.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ conversations.previous_page_number }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}">
-                                <i class="fas fa-chevron-left"></i>
-                            </a>
-                        </li>
-                    {% endif %}
+                <!-- Actions -->
+                <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div class="flex items-center space-x-4">
+                        <!-- Rating -->
+                        <form method="post" action="{% url 'qna_app:rate_conversation' conversation.id %}" class="flex items-center space-x-2">
+                            {% csrf_token %}
+                            <span class="text-sm text-gray-600">Rate:</span>
+                            <select name="user_rating" 
+                                    onchange="this.form.submit()"
+                                    class="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">No rating</option>
+                                <option value="1" {% if conversation.user_rating == 1 %}selected{% endif %}>⭐</option>
+                                <option value="2" {% if conversation.user_rating == 2 %}selected{% endif %}>⭐⭐</option>
+                                <option value="3" {% if conversation.user_rating == 3 %}selected{% endif %}>⭐⭐⭐</option>
+                                <option value="4" {% if conversation.user_rating == 4 %}selected{% endif %}>⭐⭐⭐⭐</option>
+                                <option value="5" {% if conversation.user_rating == 5 %}selected{% endif %}>⭐⭐⭐⭐⭐</option>
+                            </select>
+                        </form>
 
-                    {% for num in conversations.paginator.page_range %}
-                        {% if conversations.number == num %}
-                            <li class="page-item active">
-                                <span class="page-link">{{ num }}</span>
-                            </li>
-                        {% elif num > conversations.number|add:'-3' and num < conversations.number|add:'3' %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}">{{ num }}</a>
-                            </li>
+                        <!-- Tools Used -->
+                        {% if conversation.tools_used %}
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-600">Tools:</span>
+                            <div class="flex flex-wrap gap-1">
+                                {% for tool in conversation.tools_used %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    {{ tool }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
                         {% endif %}
-                    {% endfor %}
+                    </div>
 
-                    {% if conversations.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ conversations.next_page_number }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}">
-                                <i class="fas fa-chevron-right"></i>
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
-        {% else %}
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">No conversations found</h4>
-                    <p class="text-muted">Start a conversation to see your history here.</p>
-                    <a href="{% url 'qna_app:chat' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>Start Chatting
-                    </a>
+                    <div class="flex items-center space-x-2">
+                        <button @click="viewConversation('{{ conversation.id }}')" 
+                                class="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                                title="View details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <a href="{% url 'qna_app:chat' %}" 
+                           class="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50 transition-colors"
+                           title="Continue chat">
+                            <i class="fas fa-comments"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
-        {% endif %}
+        </div>
+        {% endfor %}
     </div>
-</div>
 
-<!-- Conversation Modal -->
-<div class="modal fade" id="conversationModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Conversation Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="conversationContent">
-                <!-- Content will be loaded here -->
+    <!-- Pagination -->
+    {% if conversations.has_other_pages %}
+    <div class="mt-8 flex items-center justify-between">
+        <div class="text-sm text-gray-600">
+            Page {{ conversations.number }} of {{ conversations.paginator.num_pages }}
+        </div>
+        <div class="flex items-center space-x-2">
+            {% if conversations.has_previous %}
+            <a href="?page={{ conversations.previous_page_number }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}" 
+               class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                Previous
+            </a>
+            {% endif %}
+            
+            {% for num in conversations.paginator.page_range %}
+                {% if conversations.number == num %}
+                <span class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">{{ num }}</span>
+                {% elif num > conversations.number|add:'-3' and num < conversations.number|add:'3' %}
+                <a href="?page={{ num }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}" 
+                   class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if conversations.has_next %}
+            <a href="?page={{ conversations.next_page_number }}{% if search_form.search_query.value %}&search_query={{ search_form.search_query.value }}{% endif %}{% if search_form.date_from.value %}&date_from={{ search_form.date_from.value }}{% endif %}{% if search_form.date_to.value %}&date_to={{ search_form.date_to.value }}{% endif %}{% if search_form.min_rating.value %}&min_rating={{ search_form.min_rating.value }}{% endif %}" 
+               class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                Next
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-xl shadow-lg p-12 text-center">
+        <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fas fa-comments text-gray-400 text-3xl"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-2">No conversations found</h3>
+        <p class="text-gray-600 mb-6 max-w-md mx-auto">
+            {% if search_form.search_query.value or search_form.date_from.value or search_form.date_to.value or search_form.min_rating.value %}
+            No conversations match your search criteria. Try adjusting your filters.
+            {% else %}
+            Start a conversation with our AI assistant to see your history here.
+            {% endif %}
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{% url 'qna_app:chat' %}" 
+               class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+                <i class="fas fa-plus"></i>
+                <span>Start Chatting</span>
+            </a>
+            {% if search_form.search_query.value or search_form.date_from.value or search_form.date_to.value or search_form.min_rating.value %}
+            <a href="{% url 'qna_app:conversation_history' %}" 
+               class="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2">
+                <i class="fas fa-times"></i>
+                <span>Clear Filters</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Conversation Details Modal -->
+    <div x-show="showModal" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4"
+         style="display: none;">
+        <div x-show="showModal"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform scale-95"
+             x-transition:enter-end="opacity-100 transform scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform scale-100"
+             x-transition:leave-end="opacity-0 transform scale-95"
+             class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Conversation Details</h3>
+                    <button @click="showModal = false" 
+                            class="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="modalContent" class="text-gray-600">
+                    <!-- Content will be loaded here -->
+                </div>
             </div>
         </div>
     </div>
@@ -150,19 +336,30 @@
 
 {% block extra_js %}
 <script>
-function viewConversation(conversationId) {
-    // In a real implementation, you would fetch conversation details via AJAX
-    // For now, just show a placeholder
-    const content = `
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            Conversation details would be loaded here via AJAX.
-            <br><small>Conversation ID: ${conversationId}</small>
-        </div>
-    `;
-
-    document.getElementById('conversationContent').innerHTML = content;
-    new bootstrap.Modal(document.getElementById('conversationModal')).show();
+function historyApp() {
+    return {
+        showModal: false,
+        
+        viewConversation(conversationId) {
+            // In a real implementation, you would fetch conversation details via AJAX
+            const content = `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-info-circle text-blue-600"></i>
+                        <span class="font-medium text-blue-900">Conversation Details</span>
+                    </div>
+                    <p class="text-blue-800 mt-2">
+                        Detailed conversation view would be implemented here with full message history, 
+                        metadata, and additional actions.
+                    </p>
+                    <p class="text-blue-700 text-sm mt-2">Conversation ID: ${conversationId}</p>
+                </div>
+            `;
+            
+            document.getElementById('modalContent').innerHTML = content;
+            this.showModal = true;
+        }
+    }
 }
 </script>
 {% endblock %}
