@@ -34,8 +34,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'qna_app',
     'data_app',
-    'tailwind',
-    'theme',
 ]
 
 TAILWIND_APP_NAME = 'theme'
