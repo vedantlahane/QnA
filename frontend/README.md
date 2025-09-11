@@ -1,53 +1,102 @@
-# React + TypeScript + Vite
+# QnA Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern React-based frontend for the AI-Powered Document Q&A System.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** with TypeScript for type safety
+- **Vite** for fast development and building
+- **Modern UI** with responsive design
+- **Real-time chat interface** for document Q&A
+- **File upload** with drag-and-drop support
+- **Authentication** with login/register flows
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **ESLint** - Code linting
+- **Tailwind CSS** - Styling (if configured)
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 📦 Installation
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+1. **Navigate to frontend directory:**
+   ```bash
+   cd frontend
+   ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Build for production:**
+   ```bash
+   npm run build
+   ```
+
+5. **Preview production build:**
+   ```bash
+   npm run preview
+   ```
+
+## 🔧 Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run lint` - Run ESLint
+- `npm run preview` - Preview production build
+
+## 🌐 Development
+
+The development server will start on `http://localhost:5173` by default.
+
+### Project Structure
+
+```
+frontend/
+├── public/           # Static assets
+├── src/             # Source code
+│   ├── components/  # React components
+│   ├── pages/       # Page components
+│   ├── hooks/       # Custom hooks
+│   ├── utils/       # Utility functions
+│   └── types/       # TypeScript types
+├── index.html       # Main HTML file
+├── package.json     # Dependencies and scripts
+├── tsconfig.json    # TypeScript configuration
+├── vite.config.ts   # Vite configuration
+└── eslint.config.js # ESLint configuration
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🔗 Backend Integration
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+This frontend communicates with the Django backend API. Make sure the backend is running on the configured API endpoint.
 
-export default tseslint.config([
-  globalIgnores(['dist']),
+## 📝 Environment Variables
+
+Create a `.env` file in the frontend root if needed:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+## 🤝 Contributing
+
+1. Follow the existing code style
+2. Run `npm run lint` before committing
+3. Test your changes thoroughly
+4. Update documentation as needed
+
+## 📄 License
+
+This project is part of the QnA system. See main project license for details.
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
