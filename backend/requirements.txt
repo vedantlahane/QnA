@@ -2,16 +2,19 @@
 Django==5.2.5
 django-environ==0.11.2
 djangorestframework==3.15.2
+django-cors-headers==4.6.0
 
 # Database
-psycopg2-binary==2.9.9  # For PostgreSQL (optional)
+# psycopg2-binary==2.9.9  # For PostgreSQL (optional)
 
 # AI/ML Libraries
 openai==1.54.4
-langchain==0.3.7
+langchain>=0.3.24,<0.4.0
 langgraph==0.2.45
-faiss-cpu==1.9.0
-sentence-transformers==3.2.1
+faiss-cpu==1.11.0
+langchain-openai>=0.2.10,<0.4.0
+langchain-community>=0.3.24,<0.4.0
+langchain-tavily>=0.2.0,<0.3.0
 
 # Web Search
 tavily-python==0.5.0
@@ -20,10 +23,10 @@ tavily-python==0.5.0
 PyPDF2==3.0.1
 pandas==2.2.3
 python-docx==1.1.2
+pyprojroot==0.3.0
 
 # Development
 python-dotenv==1.0.1
-django-cors-headers==4.6.0
 
 # Testing
 pytest==8.3.3

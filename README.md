@@ -1,217 +1,189 @@
-# QnA - AI-Powered Document Q&A System
+# QnA – Animated, AI-assisted document answers
 
-A full-stack web application that combines Retrieval-Augmented Generation (RAG) with a conversational AI agent to provide intelligent answers about uploaded documents.
+QnA is a full-stack workspace that lets teams upload structured or unstructured documents and interrogate them through a conversational agent. The backend blends Django REST Framework with LangChain/LangGraph tooling, while the frontend pairs React + TypeScript with motion-first UI powered by GSAP and Framer Motion.
 
-## 🏗️ Architecture
+---
 
-This project consists of two main components:
+## 🧱 Tech stack
 
-- **Frontend**: React + TypeScript + Vite application
-- **Backend**: Django REST API with AI agent integration
+| Layer | Technologies |
+| --- | --- |
+| Backend | Django 5 · Django REST Framework · Token auth · LangChain · LangGraph · FAISS |
+| Frontend | React 19 · Vite · TypeScript · GSAP · Framer Motion |
+| Tooling | Pytest/Django test runner · ESLint · Vite build |
 
-## 🚀 Quick Start
+---
 
-### Prerequisites
+## ✨ Highlights
 
-- **Python 3.13+** for backend
-- **Node.js 18+** for frontend
-- **OpenAI API Key** (for AI responses)
-- **Tavily API Key** (for web search)
+- Secure auth (register, login, logout, profile) with token-based APIs.
+- Document ingestion for PDF, CSV, and SQLite/SQL dumps with automatic RAG tool registration.
+- Animated dashboard: GSAP hero treatments and Framer Motion for conversations, document cards, and chat flows.
+- Conversation manager with persistent history, document attachments, and streaming-friendly agent responses (falls back to a stub model when API keys are missing so tests still pass).
+- Tavily web search tool wired into the LangGraph agent for fresh context.
 
-### 1. Clone and Setup
+---
+
+## 🚀 Quick start
+
+### 0. Requirements
+
+- Python **3.13+**
+- Node.js **18+** (or newer LTS)
+- Valid **OpenAI** and **Tavily** API keys (keep them secret; never commit real keys – use sample placeholders when sharing)
+
+### 1. Clone
 
 ```bash
 git clone <repository-url>
 cd QnA
 ```
 
-### 2. Backend Setup
+### 2. Backend setup
 
 ```bash
-# Navigate to backend
 cd backend
-
-# Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Copy environment file
-cp .env.example .env
-# Edit .env with your API keys
+cp .env.example .env            # create if one doesn’t exist
+# populate OPENAI/TAVILY/DJANGO keys (keep the file out of source control)
 
-# Run migrations
 python manage.py migrate
-
-# Start backend server
 python manage.py runserver
 ```
 
-### 3. Frontend Setup
+### 3. Frontend setup
 
 ```bash
-# Open new terminal, navigate to frontend
-cd frontend
-
-# Install dependencies
+cd ../frontend
 npm install
 
-# Start development server
-npm run dev
+cp .env.example .env            # optional helper
+echo "VITE_API_BASE_URL=http://localhost:8000/api" >> .env
+
+npm run dev                     # launches on http://localhost:5173
 ```
 
-### 4. Access the Application
+### 4. URLs
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **Admin Panel**: http://localhost:8000/admin/
+- Web app: http://localhost:5173
+- API root: http://localhost:8000/api/
+- Django admin: http://localhost:8000/admin/
 
-## 🔑 Environment Configuration
+---
 
-Create `.env` files in both frontend and backend directories:
+## � Environment variables
 
-### Backend (.env)
+### Backend (`backend/.env`)
+
 ```env
-OPENAI_API_KEY=your_openai_api_key_here
-TAVILY_API_KEY=your_tavily_api_key_here
-DJANGO_SECRET_KEY=your_django_secret_key_here
+OPENAI_API_KEY=sk-...
+OPEN_AI_API_KEY=sk-...         # maintained for libraries expecting this variant
+TAVILY_API_KEY=tvly-...
+DJANGO_SECRET_KEY=super-secret
 DEBUG=True
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 ```
 
-### Frontend (.env)
+> **Security tip:** Keep `.env` files out of commits. Rotate keys immediately if they are exposed.
+
+### Frontend (`frontend/.env`)
+
 ```env
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-## 🎯 Features
+When deploying, point `VITE_API_BASE_URL` at the public API host.
 
-### Core Functionality
-- **Document Upload**: Support for PDF and CSV files
-- **AI Q&A**: Natural language questions about documents
-- **RAG Technology**: Vector embeddings and similarity search
-- **Web Search**: Integrated web search capabilities
-- **Conversation History**: Maintains chat context
-- **User Authentication**: Secure login/registration
+---
 
-### Technical Features
-- **Real-time Chat**: WebSocket-based communication
-- **File Processing**: Automatic document parsing and indexing
-- **Vector Database**: FAISS for efficient similarity search
-- **Multi-modal Agent**: Combines document analysis with web search
-- **Responsive UI**: Mobile-friendly interface
+## 🧪 Quality checks
 
-## 📁 Project Structure
+Run these after making changes to ensure everything still works:
+
+```bash
+# Backend (from backend/)
+source venv/bin/activate
+python manage.py test qna_app
+
+# Frontend (from frontend/)
+npm run lint
+npm run build
+```
+
+The backend test suite uses a stub LLM when OpenAI credentials are missing, so CI can run without external calls.
+
+---
+
+## �️ Key directories
 
 ```
 QnA/
-├── backend/              # Django Backend
-│   ├── backend/          # Django Project Settings
-│   ├── qna_app/          # Main Django App
-│   ├── data_app/         # AI Agent Core
-│   ├── theme/            # Templates & Static Files
-│   ├── media/            # Uploaded Files
-│   ├── data/             # Vector Databases
-│   ├── requirements.txt  # Python Dependencies
-│   └── README.md         # Backend Documentation
-├── frontend/             # React Frontend
-│   ├── src/              # React Source Code
-│   ├── public/           # Static Assets
-│   ├── package.json      # Node Dependencies
-│   └── README.md         # Frontend Documentation
-├── .env                  # Environment Variables
-└── README.md             # This file
+├── backend/
+│   ├── backend/          # Django settings and URLs
+│   ├── qna_app/          # REST endpoints, serializers, tests
+│   ├── data_app/         # Agent orchestration + tools
+│   ├── media/uploads/    # User uploads (gitignored)
+│   └── requirements.txt
+└── frontend/
+	├── src/
+	│   ├── components/   # AuthPanel, ConversationSidebar, etc.
+	│   ├── api.ts        # Typed API client
+	│   └── App.tsx       # Animated dashboard shell
+	├── public/
+	└── package.json
 ```
 
-## 🔧 Development
+---
 
-### Backend Development
-```bash
-cd backend
-source venv/bin/activate
-python manage.py runserver
-```
+## � API surface
 
-### Frontend Development
-```bash
-cd frontend
-npm run dev
-```
+All endpoints are prefixed with `/api/`.
 
-### Database Management
-```bash
-cd backend
-source venv/bin/activate
-python manage.py makemigrations
-python manage.py migrate
-```
+### Auth
+- `POST /auth/register/`
+- `POST /auth/login/`
+- `POST /auth/logout/`
+- `GET  /auth/me/`
 
-## 🚀 Deployment
+### Documents
+- `GET    /files/` – list the current user’s uploads
+- `POST   /files/` – upload a new file (multipart form-data)
+- `DELETE /files/{id}/`
 
-### Backend Deployment
-1. Set `DEBUG=False` in settings
-2. Configure production database (PostgreSQL recommended)
-3. Set up static file serving
-4. Configure environment variables
-5. Run `python manage.py collectstatic`
+### Conversations & chat
+- `GET  /conversations/`
+- `GET  /conversations/{id}/`
+- `POST /chat/` – send a prompt (optionally with `conversation_id`, `title`, and `document_ids`)
 
-### Frontend Deployment
-```bash
-cd frontend
-npm run build
-# Deploy the dist/ folder to your web server
-```
+Responses return conversation objects with nested messages for easy frontend consumption.
 
-## 🤝 Contributing
+---
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+## 🖥️ Frontend UX notes
 
-## 📝 API Documentation
+- The header “Atlas Q&A” hero animates in via GSAP timeline sequencing.
+- Conversations, documents, and messages animate with Framer Motion.
+- File selection chips show processed state; unprocessed files are automatically disabled until ingestion completes.
+- Without valid OpenAI/Tavily keys, the UI still works and displays a graceful fallback response (“LLM backend is not configured”).
 
-### Authentication Endpoints
-- `POST /auth/login/` - User login
-- `POST /auth/logout/` - User logout
-- `POST /auth/register/` - User registration
+---
 
-### File Operations
-- `POST /api/upload/` - Upload documents
-- `GET /api/files/` - List user files
+## 🛠️ Developer tips
 
-### Chat/Q&A
-- `POST /api/chat/` - Send message to AI
-- `GET /api/conversations/` - Get chat history
+- Regenerate migrations when models change: `python manage.py makemigrations qna_app`.
+- Clear FAISS/vector stores (in `backend/data/`) if you need a clean slate.
+- Use `npm run preview` to smoke-test the production build locally.
+- When adding new environment variables, document them here to keep onboarding smooth.
 
-## 🐛 Troubleshooting
+---
 
-### Common Issues
+## � License
 
-**Backend Issues:**
-- Ensure virtual environment is activated
-- Check API keys in `.env` file
-- Run `python manage.py migrate` if database errors
+Distributed under the MIT License. See `LICENSE` for more information.
 
-**Frontend Issues:**
-- Ensure backend is running on port 8000
-- Check `VITE_API_BASE_URL` in frontend `.env`
-- Clear browser cache if API calls fail
+---
 
-**General Issues:**
-- Check firewall settings for port conflicts
-- Ensure all dependencies are installed
-- Verify Python/Node versions meet requirements
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- OpenAI for GPT models
-- Tavily for web search API
-- FAISS for vector similarity search
-- LangGraph for agent orchestration
+Made with ❤️ by the QnA team – animated insight from your documents.

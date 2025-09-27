@@ -3,10 +3,12 @@
 Agent Graph Module for LangGraph-based Conversational AI.
 Builds a LangGraph StateGraph agent that binds available tools to a primary LLM,
 maintains conversation state with memory checkpoints, and conditionally routes
-between the chatbot node and tool execution. 
+between the chatbot node and tool execution.
 """
 import logging
+import os
 from typing import Annotated, List, Any
+
 from typing_extensions import TypedDict
 
 from langgraph.graph.message import add_messages
@@ -14,7 +16,9 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import StateGraph, START
 
+from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
+
 from .config import LoadToolsConfig
 
 logger = logging.getLogger('data_app.agent_core.agent_graph')
@@ -24,6 +28,40 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
+class _FallbackLLM:
+    """Simple stand-in when a real LLM cannot be initialised."""
+
+    def __init__(self, message: str = "LLM backend is not configured.") -> None:
+        self._message = message
+
+    def bind_tools(self, _tools: List[Any]):
+        return self
+
+    def invoke(self, _messages: List[Any]) -> AIMessage:
+        return AIMessage(content=self._message)
+
+
+def _init_primary_llm(config: LoadToolsConfig) -> Any:
+    """Initialise the primary LLM with graceful fallback when misconfigured."""
+    api_key_present = bool(os.getenv("OPENAI_API_KEY"))
+    if not api_key_present:
+        logger.warning("OPENAI_API_KEY not set; falling back to stub LLM for agent graph.")
+        return _FallbackLLM()
+
+    try:
+        return ChatOpenAI(
+            model=config.primary_agent_llm,
+            temperature=config.primary_agent_llm_temperature,
+        )
+    except TypeError as exc:
+        # Recent versions of openai may not accept certain client kwargs (e.g. proxies)
+        logger.warning("Failed to initialise ChatOpenAI (%s); using fallback LLM instead.", exc)
+    except Exception as exc:  # pragma: no cover - defensive catch
+        logger.error("Unexpected error initialising ChatOpenAI: %s", exc)
+
+    return _FallbackLLM()
+
+
 def build_graph(available_tools: List[Any]) -> StateGraph:
     """
     Construct a tool-enabled conversational agent graph using LangGraph.
@@ -31,10 +69,7 @@ def build_graph(available_tools: List[Any]) -> StateGraph:
     TOOLS_CFG = LoadToolsConfig()
 
     # Initialize the primary LLM and bind tools
-    primary_llm = ChatOpenAI(
-        model=TOOLS_CFG.primary_agent_llm,
-        temperature=TOOLS_CFG.primary_agent_llm_temperature,
-    )
+    primary_llm = _init_primary_llm(TOOLS_CFG)
     primary_llm_with_tools = primary_llm.bind_tools(available_tools)
 
     # Chatbot node invokes the tool-enabled LLM
