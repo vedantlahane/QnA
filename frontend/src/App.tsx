@@ -1,37 +1,31 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 
-import { api, type LoginPayload, type RegisterPayload } from './api'
+import { useAuth } from './hooks/useAuth'
+import { useConversations } from './hooks/useConversations'
+import { useDocuments } from './hooks/useDocuments'
+import { useChat } from './hooks/useChat'
 import { AuthPanel } from './components/AuthPanel'
 import { ChatWindow } from './components/ChatWindow'
 import { ConversationSidebar } from './components/ConversationSidebar'
 import { DocumentManager } from './components/DocumentManager'
-import type { ConversationItem, DocumentItem, MessageItem, User } from './types'
-
-const TOKEN_STORAGE_KEY = 'qna_auth_token'
+import type { ConversationItem } from './types'
+import type { LoginPayload, RegisterPayload } from './api'
 
 function App() {
   const rootRef = useRef<HTMLDivElement | null>(null)
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY))
-  const [user, setUser] = useState<User | null>(null)
-  const [conversations, setConversations] = useState<ConversationItem[]>([])
-  const [activeConversation, setActiveConversation] = useState<ConversationItem | null>(null)
-  const [messages, setMessages] = useState<MessageItem[]>([])
-  const [documents, setDocuments] = useState<DocumentItem[]>([])
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<number[]>([])
+
+  // Custom hooks
+  const auth = useAuth()
+  const conversationsHook = useConversations()
+  const documentsHook = useDocuments()
+  const chat = useChat()
+
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
-  const [authError, setAuthError] = useState<string | null>(null)
-  const [authLoading, setAuthLoading] = useState(false)
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<number[]>([])
+  const [globalError, setGlobalError] = useState<string | null>(null)
   const [initialLoading, setInitialLoading] = useState(false)
   const [sidebarLoading, setSidebarLoading] = useState(false)
-  const [documentUploading, setDocumentUploading] = useState(false)
-  const [chatSending, setChatSending] = useState(false)
-  const [globalError, setGlobalError] = useState<string | null>(null)
-  const activeConversationRef = useRef<ConversationItem | null>(null)
-
-  useEffect(() => {
-    activeConversationRef.current = activeConversation
-  }, [activeConversation])
 
   useLayoutEffect(() => {
     if (!rootRef.current) return
@@ -44,180 +38,90 @@ function App() {
     return () => ctx.revert()
   }, [])
 
-  const persistToken = useCallback((value: string | null) => {
-    if (value) {
-      localStorage.setItem(TOKEN_STORAGE_KEY, value)
-    } else {
-      localStorage.removeItem(TOKEN_STORAGE_KEY)
-    }
-    setToken(value)
-  }, [])
-
-  const resetSession = useCallback(() => {
-    setUser(null)
-    setConversations([])
-    setActiveConversation(null)
-    setMessages([])
-    setDocuments([])
-    setSelectedDocumentIds([])
-  }, [])
-
-  const loadDocuments = useCallback(async (authToken: string) => {
-    const items = await api.listDocuments(authToken)
-    setDocuments(items)
-  }, [])
-
-  const loadConversations = useCallback(async (authToken: string, preserveActive = false) => {
-    const items = await api.listConversations(authToken)
-    setConversations(items)
-
-    const currentActive = activeConversationRef.current
-
-    if (!preserveActive || !currentActive) {
-      if (items.length > 0) {
-        const detail = await api.retrieveConversation(authToken, items[0].id)
-        setActiveConversation(detail)
-        setMessages(detail.messages ?? [])
-      } else {
-        setActiveConversation(null)
-        setMessages([])
-      }
-    } else if (!items.some((item) => item.id === currentActive.id)) {
-      setActiveConversation(null)
-      setMessages([])
-    }
-  }, [])
-
   const loadInitialData = useCallback(
     async (authToken: string) => {
-    setInitialLoading(true)
-    setGlobalError(null)
-    try {
-      const [profile] = await Promise.all([
-        api.profile(authToken),
-        loadDocuments(authToken),
-        loadConversations(authToken),
-      ])
-      setUser(profile)
-    } catch (err) {
-      if (err instanceof Error) {
-        setGlobalError(err.message)
-      } else {
-        setGlobalError('Unable to load your workspace.')
+      setInitialLoading(true)
+      setGlobalError(null)
+      try {
+        await Promise.all([
+          auth.loadProfile(authToken),
+          documentsHook.loadDocuments(authToken),
+          conversationsHook.loadConversations(authToken),
+        ])
+      } catch (err) {
+        if (err instanceof Error) {
+          setGlobalError(err.message)
+        } else {
+          setGlobalError('Unable to load your workspace.')
+        }
+        auth.resetSession()
+      } finally {
+        setInitialLoading(false)
       }
-      persistToken(null)
-      resetSession()
-    } finally {
-      setInitialLoading(false)
-    }
     },
-    [loadConversations, loadDocuments, persistToken, resetSession],
+    [auth, documentsHook, conversationsHook],
   )
 
   useEffect(() => {
-    if (!token) {
-      resetSession()
+    if (!auth.token) {
+      auth.resetSession()
       return
     }
-    loadInitialData(token)
-  }, [token, loadInitialData, resetSession])
+    loadInitialData(auth.token)
+  }, [auth.token, auth, loadInitialData])
 
   useEffect(() => {
-    setSelectedDocumentIds((prev) => prev.filter((id) => documents.some((doc) => doc.id === id && doc.processed)))
-  }, [documents])
+    setSelectedDocumentIds((prev) => prev.filter((id) => documentsHook.documents.some((doc) => doc.id === id && doc.processed)))
+  }, [documentsHook.documents])
 
-  const handleAuthSuccess = (nextToken: string, nextUser: User) => {
-    persistToken(nextToken)
-    setUser(nextUser)
-    setAuthError(null)
-  }
+  const handleAuthSuccess = useCallback(() => {
+    setGlobalError(null)
+  }, [])
 
-  const handleLogin = async (payload: LoginPayload) => {
-    setAuthLoading(true)
-    setAuthError(null)
-    try {
-      const response = await api.login(payload)
-      handleAuthSuccess(response.token, response.user)
-    } catch (err) {
-      if (err instanceof Error) {
-        setAuthError(err.message)
-      } else {
-        setAuthError('Login failed. Please try again.')
-      }
-      throw err
-    } finally {
-      setAuthLoading(false)
-    }
-  }
+  const handleLogin = useCallback(async (payload: LoginPayload) => {
+    await auth.login(payload)
+    handleAuthSuccess()
+  }, [auth, handleAuthSuccess])
 
-  const handleRegister = async (payload: RegisterPayload) => {
-    setAuthLoading(true)
-    setAuthError(null)
-    try {
-      const response = await api.register(payload)
-      handleAuthSuccess(response.token, response.user)
-    } catch (err) {
-      if (err instanceof Error) {
-        setAuthError(err.message)
-      } else {
-        setAuthError('Registration failed. Please try again.')
-      }
-      throw err
-    } finally {
-      setAuthLoading(false)
-    }
-  }
+  const handleRegister = useCallback(async (payload: RegisterPayload) => {
+    await auth.register(payload)
+    handleAuthSuccess()
+  }, [auth, handleAuthSuccess])
 
-  const handleLogout = async () => {
-    if (!token) {
-      persistToken(null)
-      resetSession()
-      return
-    }
-    try {
-      await api.logout(token)
-    } catch (err) {
-      console.warn('Logout error', err)
-    } finally {
-      persistToken(null)
-      resetSession()
-    }
-  }
+  const handleLogout = useCallback(async () => {
+    await auth.logout()
+  }, [auth])
 
   const handleSelectConversation = useCallback(
     async (conversation: ConversationItem | null) => {
-    if (!token) return
-    if (!conversation) {
-      setActiveConversation(null)
-      setMessages([])
-      setSelectedDocumentIds([])
-      return
-    }
-
-    setSidebarLoading(true)
-    setGlobalError(null)
-    try {
-      const detail = await api.retrieveConversation(token, conversation.id)
-      setActiveConversation(detail)
-      setMessages(detail.messages ?? [])
-      setSelectedDocumentIds([])
-    } catch (err) {
-      if (err instanceof Error) {
-        setGlobalError(err.message)
+      if (!auth.token) return
+      if (!conversation) {
+        chat.startNewConversation()
+        setSelectedDocumentIds([])
+        return
       }
-    } finally {
-      setSidebarLoading(false)
-    }
+
+      setSidebarLoading(true)
+      setGlobalError(null)
+      try {
+        await chat.loadConversation(auth.token, conversation.id)
+        setSelectedDocumentIds([])
+      } catch (err) {
+        if (err instanceof Error) {
+          setGlobalError(err.message)
+        }
+      } finally {
+        setSidebarLoading(false)
+      }
     },
-    [token],
+    [auth.token, chat],
   )
 
   const handleStartNewConversation = useCallback(() => {
-    setActiveConversation(null)
-    setMessages([])
+    chat.startNewConversation()
     setSelectedDocumentIds([])
     setGlobalError(null)
-  }, [])
+  }, [chat])
 
   const handleToggleDocument = useCallback((id: number) => {
     setSelectedDocumentIds((prev) =>
@@ -227,100 +131,87 @@ function App() {
 
   const handleUploadDocument = useCallback(
     async (file: File) => {
-    if (!token) {
-      throw new Error('Please sign in to upload documents.')
-    }
-    setDocumentUploading(true)
-    setGlobalError(null)
-    try {
-      await api.uploadDocument(token, file)
-      await loadDocuments(token)
-    } finally {
-      setDocumentUploading(false)
-    }
+      if (!auth.token) {
+        throw new Error('Please sign in to upload documents.')
+      }
+      setGlobalError(null)
+      try {
+        await documentsHook.uploadDocument(auth.token, file)
+      } catch (err) {
+        if (err instanceof Error) {
+          setGlobalError(err.message)
+        }
+      }
     },
-    [loadDocuments, token],
+    [auth.token, documentsHook],
   )
 
   const handleDeleteDocument = useCallback(
     async (id: number) => {
-    if (!token) return
-    try {
-      await api.deleteDocument(token, id)
-      await loadDocuments(token)
-    } catch (err) {
-      if (err instanceof Error) {
-        setGlobalError(err.message)
+      if (!auth.token) return
+      try {
+        await documentsHook.deleteDocument(auth.token, id)
+      } catch (err) {
+        if (err instanceof Error) {
+          setGlobalError(err.message)
+        }
       }
-    }
     },
-    [loadDocuments, token],
+    [auth.token, documentsHook],
   )
 
   const refreshDocuments = useCallback(async () => {
-    if (!token) return
+    if (!auth.token) return
     try {
-      await loadDocuments(token)
+      await documentsHook.refreshDocuments(auth.token)
     } catch (err) {
       if (err instanceof Error) {
         setGlobalError(err.message)
       }
     }
-  }, [loadDocuments, token])
+  }, [auth.token, documentsHook])
 
   const refreshConversations = useCallback(async () => {
-    if (!token) return
+    if (!auth.token) return
     try {
-      await loadConversations(token, true)
+      await conversationsHook.refreshConversations(auth.token)
     } catch (err) {
       if (err instanceof Error) {
         setGlobalError(err.message)
       }
     }
-  }, [loadConversations, token])
+  }, [auth.token, conversationsHook])
 
   const handleSendMessage = useCallback(
     async (message: string, options?: { title?: string }) => {
-    if (!token) {
-      throw new Error('Please sign in to chat with your documents.')
-    }
-    setChatSending(true)
-    setGlobalError(null)
-    try {
-      const payload = {
-        message,
-        document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
-        conversation_id: activeConversation?.id,
-        title: options?.title,
+      if (!auth.token) {
+        throw new Error('Please sign in to chat with your documents.')
       }
-      const response = await api.sendChat(token, payload)
-      setActiveConversation(response)
-      setMessages(response.messages ?? [])
-      setSelectedDocumentIds([])
-      setConversations((prev) => {
-        const exists = prev.find((item) => item.id === response.id)
-        if (exists) {
-          return prev.map((item) => (item.id === response.id ? { ...item, ...response } : item))
+      setGlobalError(null)
+      try {
+        const payload = {
+          message,
+          document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+          conversation_id: chat.activeConversation?.id,
+          title: options?.title,
         }
-        return [response, ...prev]
-      })
-      await loadDocuments(token)
-    } catch (err) {
-      if (err instanceof Error) {
-        setGlobalError(err.message)
+        const response = await chat.sendMessage(auth.token, payload)
+        conversationsHook.addConversation(response)
+        setSelectedDocumentIds([])
+        await refreshConversations()
+      } catch (err) {
+        if (err instanceof Error) {
+          setGlobalError(err.message)
+        }
+        throw err
       }
-      throw err
-    } finally {
-      setChatSending(false)
-      await refreshConversations()
-    }
     },
-    [activeConversation, loadDocuments, refreshConversations, selectedDocumentIds, token],
+    [auth.token, selectedDocumentIds, chat, conversationsHook, refreshConversations],
   )
 
-  const conversationMessages = useMemo(() => messages ?? [], [messages])
+  const conversationMessages = useMemo(() => chat.messages ?? [], [chat.messages])
 
-  const isAuthenticated = Boolean(token)
+  const isAuthenticated = Boolean(auth.token)
 
   return (
     <div
@@ -343,7 +234,7 @@ function App() {
             Sign out
           </button>
         )}
-  <span className="hero-accent pointer-events-none absolute -bottom-10 right-5 h-[220px] w-[220px] rounded-full bg-hero-accent" />
+        <span className="hero-accent pointer-events-none absolute -bottom-10 right-5 h-[220px] w-[220px] rounded-full bg-hero-accent" />
       </header>
 
       {globalError && (
@@ -356,8 +247,8 @@ function App() {
         <div className="flex justify-center px-4 pb-24 pt-12 sm:px-0">
           <AuthPanel
             mode={authMode}
-            loading={authLoading}
-            error={authError}
+            loading={auth.loading}
+            error={auth.error}
             onToggleMode={() => setAuthMode((prev) => (prev === 'login' ? 'register' : 'login'))}
             onLogin={handleLogin}
             onRegister={handleRegister}
@@ -371,16 +262,16 @@ function App() {
             <>
               <div className="flex flex-col gap-6 md:flex-row md:flex-wrap lg:flex-col">
                 <ConversationSidebar
-                  conversations={conversations}
-                  activeConversationId={activeConversation?.id ?? null}
+                  conversations={conversationsHook.conversations}
+                  activeConversationId={chat.activeConversation?.id ?? null}
                   loading={sidebarLoading}
                   onSelectConversation={handleSelectConversation}
                   onStartNewConversation={handleStartNewConversation}
                 />
                 <DocumentManager
-                  documents={documents}
+                  documents={documentsHook.documents}
                   selectedDocumentIds={selectedDocumentIds}
-                  uploading={documentUploading}
+                  uploading={documentsHook.uploading}
                   onUpload={handleUploadDocument}
                   onToggleDocument={handleToggleDocument}
                   onDeleteDocument={handleDeleteDocument}
@@ -388,12 +279,12 @@ function App() {
                 />
               </div>
               <ChatWindow
-                user={user}
-                conversation={activeConversation}
+                user={auth.user}
+                conversation={chat.activeConversation}
                 messages={conversationMessages}
                 selectedDocumentIds={selectedDocumentIds}
-                documents={documents}
-                sending={chatSending}
+                documents={documentsHook.documents}
+                sending={chat.sending}
                 onSendMessage={handleSendMessage}
               />
             </>

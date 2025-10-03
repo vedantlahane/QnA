@@ -1,17 +1,9 @@
 import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
 
+import { Button } from './ui/Button'
+import { Input } from './ui/Input'
+import { Card } from './ui/Card'
 import type { LoginPayload, RegisterPayload } from '../api'
-
-const loginVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-}
-
-const buttonVariants = {
-  tap: { scale: 0.97 },
-  hover: { scale: 1.03 },
-}
 
 type AuthPanelProps = {
   mode: 'login' | 'register'
@@ -43,12 +35,6 @@ export function AuthPanel({ mode, loading, error, onToggleMode, onLogin, onRegis
     const { value } = event.target
     setFormState((prev) => ({ ...prev, [key]: value }))
   }
-
-  const inputClassName =
-    'w-full rounded-xl border border-slate-500/30 bg-slate-900/70 px-4 py-3 text-base text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60 focus:border-sky-300/40 disabled:cursor-not-allowed disabled:opacity-60'
-  const labelClassName = 'flex flex-col gap-2 text-sm font-medium text-slate-200/90'
-  const cardClassName =
-    'w-full max-w-md rounded-2xl border border-slate-400/20 bg-slate-900/70 p-10 backdrop-blur-xl shadow-lg shadow-sky-900/20 flex flex-col gap-7'
 
   const resetSensitiveFields = () => {
     setFormState((prev) => ({
@@ -83,82 +69,61 @@ export function AuthPanel({ mode, loading, error, onToggleMode, onLogin, onRegis
   }
 
   return (
-    <motion.section
-      className={cardClassName}
-      initial="hidden"
-      animate="visible"
-      variants={loginVariants}
-      transition={{ duration: 0.6, ease: 'easeOut' }}
-    >
+    <Card className="w-full max-w-md p-10 flex flex-col gap-7">
       <h2 className="text-3xl font-semibold text-slate-50">{title}</h2>
       <p className="text-base text-slate-300/90">{subtitle}</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <label className={labelClassName}>
-          <span>Username</span>
-          <input
-            type="text"
-            required
-            autoComplete="username"
-            value={formState.username}
-            onChange={handleChange('username')}
-            disabled={loading}
-            className={inputClassName}
-          />
-        </label>
+        <Input
+          label="Username"
+          type="text"
+          required
+          autoComplete="username"
+          value={formState.username}
+          onChange={handleChange('username')}
+          disabled={loading}
+        />
 
         {!isLogin && (
           <>
-            <label className={labelClassName}>
-              <span>Email</span>
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={formState.email}
-                onChange={handleChange('email')}
-                disabled={loading}
-                className={inputClassName}
-              />
-            </label>
+            <Input
+              label="Email"
+              type="email"
+              required
+              autoComplete="email"
+              value={formState.email}
+              onChange={handleChange('email')}
+              disabled={loading}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className={labelClassName}>
-                <span>First name</span>
-                <input
-                  type="text"
-                  required
-                  value={formState.first_name}
-                  onChange={handleChange('first_name')}
-                  disabled={loading}
-                  className={inputClassName}
-                />
-              </label>
-              <label className={labelClassName}>
-                <span>Last name</span>
-                <input
-                  type="text"
-                  required
-                  value={formState.last_name}
-                  onChange={handleChange('last_name')}
-                  disabled={loading}
-                  className={inputClassName}
-                />
-              </label>
+              <Input
+                label="First name"
+                type="text"
+                required
+                value={formState.first_name}
+                onChange={handleChange('first_name')}
+                disabled={loading}
+              />
+              <Input
+                label="Last name"
+                type="text"
+                required
+                value={formState.last_name}
+                onChange={handleChange('last_name')}
+                disabled={loading}
+              />
             </div>
           </>
         )}
 
-        <label className={labelClassName}>
-          <span>Password</span>
-          <input
-            type="password"
-            required
-            autoComplete={isLogin ? 'current-password' : 'new-password'}
-            value={formState.password}
-            onChange={handleChange('password')}
-            disabled={loading}
-            className={inputClassName}
-          />
-        </label>
+        <Input
+          label="Password"
+          type="password"
+          required
+          autoComplete={isLogin ? 'current-password' : 'new-password'}
+          value={formState.password}
+          onChange={handleChange('password')}
+          disabled={loading}
+        />
 
         {error && (
           <p className="rounded-lg border border-rose-400/40 bg-rose-500/15 px-4 py-2 text-sm text-rose-200">
@@ -166,16 +131,14 @@ export function AuthPanel({ mode, loading, error, onToggleMode, onLogin, onRegis
           </p>
         )}
 
-        <motion.button
+        <Button
           type="submit"
-          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/25 transition hover:from-sky-300 hover:to-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-wait disabled:opacity-60"
-          whileHover="hover"
-          whileTap="tap"
-          variants={buttonVariants}
           disabled={loading}
+          loading={loading}
+          className="w-full"
         >
           {loading ? 'Please wait…' : isLogin ? 'Log in' : 'Create account'}
-        </motion.button>
+        </Button>
       </form>
       <button
         type="button"
@@ -186,6 +149,6 @@ export function AuthPanel({ mode, loading, error, onToggleMode, onLogin, onRegis
         {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
         <span className="underline decoration-sky-200/70 underline-offset-4">{isLogin ? 'Sign up' : 'Log in'}</span>
       </button>
-    </motion.section>
+    </Card>
   )
 }

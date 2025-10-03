@@ -133,4 +133,4 @@ export const api = {
     ),
 }
 
-export type { RegisterPayload, LoginPayload, AuthResponse }
+export type { RegisterPayload, LoginPayload, AuthResponse, ChatPayload }

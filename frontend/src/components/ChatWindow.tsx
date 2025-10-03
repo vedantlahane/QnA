@@ -1,6 +1,9 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { Button } from './ui/Button'
+import { Input } from './ui/Input'
+import { Textarea } from './ui/Textarea'
 import type { ConversationItem, DocumentItem, MessageItem, User } from '../types'
 
 const messageVariants = {
@@ -67,19 +70,16 @@ export function ChatWindow({
     }
   }
 
-  const inputClassName =
-    'w-full rounded-xl border border-slate-500/30 bg-slate-900/70 px-4 py-3 text-base text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60 focus:border-sky-300/40 disabled:cursor-not-allowed disabled:opacity-60'
-
   return (
-    <section className="flex h-full flex-col gap-6 rounded-3xl border border-slate-500/25 bg-slate-900/80 p-8 shadow-xl shadow-slate-900/50 backdrop-blur-xl">
+    <section className="flex h-full flex-col gap-6 rounded-3xl border border-slate-500/25 bg-slate-900/80 p-8 shadow-xl shadow-slate-900/50 backdrop-blur-xl" aria-labelledby="chat-window-title">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <h3 className="text-2xl font-semibold text-slate-100">{conversation?.title || 'New conversation'}</h3>
+          <h3 id="chat-window-title" className="text-2xl font-semibold text-slate-100">{conversation?.title || 'New conversation'}</h3>
           <p className="text-sm text-slate-400">Ask questions about your documents or start a fresh topic.</p>
         </div>
         {user && <span className="text-sm text-slate-400">Signed in as {user.username}</span>}
       </header>
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-2" aria-live="polite">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-2" aria-live="polite" aria-label="Chat messages" role="log">
         <AnimatePresence initial={false}>
           {messages.map((message) => (
             <motion.div
@@ -94,6 +94,8 @@ export function ChatWindow({
               animate="visible"
               exit="hidden"
               transition={{ duration: 0.25, ease: 'easeOut' }}
+              role="article"
+              aria-label={`Message from ${message.role === 'assistant' ? 'Assistant' : 'You'}`}
             >
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300/80">
                 {message.role === 'assistant' ? 'Assistant' : 'You'}
@@ -107,19 +109,20 @@ export function ChatWindow({
         </AnimatePresence>
         <div ref={endRef} />
       </div>
-      <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+      <form className="flex flex-col gap-5" onSubmit={handleSubmit} aria-label="Send message form">
         {isNewConversation && (
-          <label className="flex flex-col gap-2 text-sm text-slate-300">
-            <span>Conversation title</span>
-            <input
+          <>
+            <Input
+              label="Conversation title"
               type="text"
               placeholder="Optional title"
               value={conversationTitle}
               onChange={(event) => setConversationTitle(event.currentTarget.value)}
               disabled={sending}
-              className={inputClassName}
+              aria-describedby="conversation-title-help"
             />
-          </label>
+            <p id="conversation-title-help" className="text-xs text-slate-400">Give your conversation a descriptive title</p>
+          </>
         )}
         {conversationDocs.length > 0 && (
           <div className="flex flex-col gap-2 text-sm text-slate-300">
@@ -141,27 +144,25 @@ export function ChatWindow({
             </ul>
           </div>
         )}
-        <label className="flex flex-col gap-2 text-sm text-slate-300">
-          <span>Message</span>
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            placeholder={conversation ? 'Continue the thread…' : 'What would you like to learn?'}
-            onChange={(event) => setDraft(event.currentTarget.value)}
-            rows={3}
-            disabled={sending}
-            className={`${inputClassName} resize-y min-h-[110px]`}
-          />
-        </label>
-        <motion.button
-          type="submit"
-          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/25 transition hover:from-sky-300 hover:to-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-wait disabled:opacity-60"
-          whileTap={{ scale: 0.97 }}
-          whileHover={{ scale: 1.03 }}
+        <Textarea
+          label="Message"
+          ref={textareaRef}
+          value={draft}
+          placeholder={conversation ? 'Continue the thread…' : 'What would you like to learn?'}
+          onChange={(event) => setDraft(event.currentTarget.value)}
+          rows={3}
           disabled={sending}
+          aria-describedby="message-help"
+        />
+        <p id="message-help" className="text-xs text-slate-400">Type your message and press Enter or click Send</p>
+        <Button
+          type="submit"
+          disabled={sending}
+          loading={sending}
+          className="w-full"
         >
           {sending ? 'Sending…' : 'Send'}
-        </motion.button>
+        </Button>
       </form>
     </section>
   )

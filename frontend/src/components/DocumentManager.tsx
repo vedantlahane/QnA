@@ -77,10 +77,10 @@ export function DocumentManager({
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-slate-500/25 bg-slate-900/70 p-6 shadow-lg shadow-slate-900/30 backdrop-blur-xl">
+    <section className="flex flex-col gap-4 rounded-2xl border border-slate-500/25 bg-slate-900/70 p-6 shadow-lg shadow-slate-900/30 backdrop-blur-xl" aria-labelledby="documents-heading">
       <header className="flex items-center justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="text-lg font-semibold text-slate-100">Documents</h3>
+          <h3 id="documents-heading" className="text-lg font-semibold text-slate-100">Documents</h3>
           <p className="text-sm text-slate-400">
             {processedCount}/{documents.length} processed
           </p>
@@ -93,6 +93,7 @@ export function DocumentManager({
               onChange={handleUpload}
               disabled={uploading}
               className="absolute inset-0 cursor-pointer opacity-0"
+              aria-label="Upload document file"
             />
             <span>{uploading ? 'Uploading…' : 'Upload'}</span>
           </label>

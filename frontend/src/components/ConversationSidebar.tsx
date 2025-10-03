@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
+import { Button } from './ui/Button'
 import type { ConversationItem } from '../types'
 
 type ConversationSidebarProps = {
@@ -24,19 +25,20 @@ function ConversationSidebarComponent({
   onStartNewConversation,
 }: ConversationSidebarProps) {
   return (
-    <aside className="flex flex-col gap-4 rounded-2xl border border-slate-500/25 bg-slate-900/70 p-6 shadow-lg shadow-slate-900/30 backdrop-blur-xl">
+    <aside className="flex flex-col gap-4 rounded-2xl border border-slate-500/25 bg-slate-900/70 p-6 shadow-lg shadow-slate-900/30 backdrop-blur-xl" aria-labelledby="conversations-heading">
       <header className="flex items-center justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="text-lg font-semibold text-slate-100">Conversations</h3>
+          <h3 id="conversations-heading" className="text-lg font-semibold text-slate-100">Conversations</h3>
           <p className="text-sm text-slate-400">Choose a thread or begin a new one</p>
         </div>
-        <button
+        <Button
           type="button"
-          className="inline-flex h-9 items-center justify-center rounded-lg bg-gradient-to-br from-sky-400 to-indigo-500 px-3 text-sm font-semibold text-slate-950 shadow-md shadow-sky-500/25 transition hover:from-sky-300 hover:to-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
           onClick={onStartNewConversation}
+          size="sm"
+          aria-label="Start a new conversation"
         >
           New
-        </button>
+        </Button>
       </header>
       <div className="flex flex-col gap-3">
         {loading && <p className="text-sm text-slate-400">Loading…</p>}
@@ -56,6 +58,8 @@ function ConversationSidebarComponent({
               animate="visible"
               exit="hidden"
               layout
+              aria-label={`Select conversation: ${conversation.title || `Conversation ${conversation.id}`}`}
+              aria-pressed={conversation.id === activeConversationId}
             >
               <span className="text-sm font-semibold text-slate-100">
                 {conversation.title || `Conversation ${conversation.id}`}
