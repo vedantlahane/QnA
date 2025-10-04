@@ -1,9 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  activeItem: string;
+  onSelect: (itemId: string) => void;
+  onStartNewChat: () => void;
 }
 
 interface NavItem {
@@ -22,9 +25,7 @@ const baseIconProps = {
   strokeLinejoin: 'round' as const,
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
-  const [activeItem, setActiveItem] = useState('chat');
-
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSelect, onStartNewChat }) => {
   const navItems = useMemo<NavItem[]>(
     () => [
       {
@@ -46,39 +47,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         ),
       },
       {
-        id: 'analytics',
-        label: 'Analytics',
-        icon: (
-          <svg {...baseIconProps} viewBox="0 0 24 24" aria-hidden>
-            <path d="M18 20V10M12 20V4M6 20v-6" />
-          </svg>
-        ),
-      },
-      {
         id: 'library',
         label: 'Library',
         icon: (
           <svg {...baseIconProps} viewBox="0 0 24 24" aria-hidden>
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5z" />
-          </svg>
-        ),
-      },
-      {
-        id: 'settings',
-        label: 'Settings',
-        icon: (
-          <svg {...baseIconProps} viewBox="0 0 24 24" aria-hidden>
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08 4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08 4.24-4.24" />
-          </svg>
-        ),
-      },
-      {
-        id: 'community',
-        label: 'Community',
-        icon: (
-          <svg {...baseIconProps} viewBox="0 0 24 24" aria-hidden>
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
           </svg>
         ),
       },
@@ -106,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   return (
     <motion.aside
-      className="flex flex-col overflow-hidden border-r border-white/10 bg-[#0f1420]/60 backdrop-blur-xl"
+      className="flex flex-col overflow-hidden border-r border-white/10  backdrop-blur-xl"
       animate={{ width: collapsed ? 80 : 260 }}
       transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
     >
@@ -119,9 +92,22 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             transition={{ duration: 0.3 }}
           >
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#2563eb] to-[#3b82f6] text-lg font-black text-white shadow-lg">
-              ◇
+              <svg
+                              width="26"
+                              height="26"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-sky-200"
+                            >
+                              <path d="M4 4h9l7 8-7 8H4l7-8z" />
+                              <path d="M11 4 7 12l4 8" />
+                            </svg>
             </div>
-            <span className="text-sm font-semibold tracking-wide text-white">Genie</span>
+            <span className="text-sm font-semibold tracking-wide text-white">Axon</span>
           </motion.div>
         )}
 
@@ -163,7 +149,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               key={item.id}
               type="button"
               className={navButtonClass(isActive)}
-              onClick={() => setActiveItem(item.id)}
+              onClick={() => onSelect(item.id)}
               aria-pressed={isActive}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -188,7 +174,33 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         })}
       </nav>
 
-      <div className="flex flex-col gap-3 border-t border-white/10 px-4 pb-5 pt-4">
+      <div
+        className={`flex flex-col gap-3 border-t border-white/10 pb-5 pt-4 ${collapsed ? 'px-3' : 'px-4'}`}
+      >
+        <motion.button
+          type="button"
+          onClick={onStartNewChat}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <span className="grid h-6 w-6 place-items-center rounded-lg bg-[#2563eb]/20 text-white" aria-hidden>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </span>
+          {!collapsed && <span>New chat</span>}
+        </motion.button>
         <motion.button
           type="button"
           className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
@@ -217,24 +229,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           </svg>
           {!collapsed && <span>Theme</span>}
         </motion.button>
-
-        <motion.div
-          className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
-          whileHover={{ scale: 1.02 }}
-        >
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-400 to-pink-500" />
-          {!collapsed && (
-            <motion.div
-              className="flex-1"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, delay: 0.1 }}
-            >
-              <div className="text-xs font-medium text-white">0xh4l...ef05</div>
-              <div className="text-[10px] text-white/50">Ethereum</div>
-            </motion.div>
-          )}
-        </motion.div>
       </div>
     </motion.aside>
   );
