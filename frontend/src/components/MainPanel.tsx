@@ -50,7 +50,7 @@ const MainPanel: React.FC<MainPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-1 flex-col bg-[radial-gradient(ellipse_at_top,_rgba(30,45,85,0.25),_transparent_65%)]">
+    <div className="flex flex-1 flex-col dark:bg-[radial-gradient(ellipse_at_top,_rgba(0,100,100,0.25),_transparent_65%)] bg-[radial-gradient(ellipse_at_top,_rgba(30,45,85,0.25),_transparent_65%)]">
       <div className="px-8 pt-4">
         <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 rounded-3xl  backdrop-blur-xl">
           <motion.button

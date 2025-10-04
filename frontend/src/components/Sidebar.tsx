@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface SidebarProps {
@@ -26,6 +26,27 @@ const baseIconProps = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSelect, onStartNewChat }) => {
+  const [darkTheme, setDarkTheme] = useState(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+    return localStorage.getItem('theme') !== 'light';
+  });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    if (darkTheme) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkTheme]);
+
   const navItems = useMemo<NavItem[]>(
     () => [
       {
@@ -73,9 +94,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSe
       'group relative flex items-center rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]',
       collapsed ? 'justify-center px-3 py-3' : 'justify-start gap-3 px-4 py-2.5',
       isActive
-        ? 'bg-white/10 text-white border border-white/20'
+        ? 'bg-gradient-blue text-white border border-white/20'
         : 'text-white/50 hover:bg-white/5 hover:text-white/80 border border-transparent',
     ].join(' ');
+
 
   return (
     <motion.aside
@@ -206,6 +228,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSe
           className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
+          onClick={() => setDarkTheme(!darkTheme)}
         >
           <svg
             width="16"

@@ -180,7 +180,7 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive }) 
           )}
         </AnimatePresence>
 
-        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10  px-4 py-3 backdrop-blur-sm">
           <motion.button
             type="button"
             className={`grid h-9 w-9 place-items-center rounded-lg transition ${

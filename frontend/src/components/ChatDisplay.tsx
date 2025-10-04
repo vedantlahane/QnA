@@ -58,7 +58,7 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                 transition={{ duration: 0.55, ease: [0.22, 0.61, 0.36, 1] }}
               >
                 <LayoutGroup id="landing-toggle">
-                  <div className="mb-10 flex items-center gap-8">
+                  <div className="mb-10 flex  gap-2">
                     {(['chat', 'history'] as const).map((mode) => {
                       const isActive = view === mode;
                       return (
@@ -66,7 +66,7 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                           key={mode}
                           type="button"
                           onClick={() => onViewChange(mode)}
-                          className={`relative flex flex-col items-center gap-2 px-2 pb-1 text-sm font-semibold transition-colors ${
+                          className={`relative flex flex-col items-center  px-2 pb-1 text-xl font-semibold transition-colors ${
                             isActive ? 'text-white' : 'text-white/60 hover:text-white/80'
                           }`}
                         >
@@ -101,7 +101,7 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
                         >
                           
-                          <div className="relative flex items-center gap-1 text-xl font-semibold tracking-wide text-white">
+                          <div className="relative flex items-center gap-1 text-xl  font-semibold tracking-wide text-white">
                             <svg
                               width="26"
                               height="26"
