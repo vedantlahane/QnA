@@ -1,0 +1,10 @@
+langchain-community
+langchain-core
+langchain
+langgraph
+SQLAlchemy
+langsmith
+langchainhub
+pypdf
+langchain-openai
+langchain-unstructured
