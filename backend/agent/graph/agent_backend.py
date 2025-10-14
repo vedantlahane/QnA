@@ -1,15 +1,8 @@
 import json
 from typing import Annotated
 from typing_extensions import TypedDict
-from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-
-class State(TypedDict):
-    messages: Annotated[list,add_messages]
-
-graph_builder = StateGraph(State)
-
-
+from langgraph.prebuilt  import ToolNode
 import os
 from langchain.chat_models import init_chat_model
 from dotenv import load_dotenv
@@ -18,6 +11,12 @@ load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 if api_key:
     os.environ["OPENAI_API_KEY"] = api_key
+
+
+class State(TypedDict):
+    messages: Annotated[list[dict], add_messages]
+
+
 
 llm = init_chat_model("openai:gpt-4")
 

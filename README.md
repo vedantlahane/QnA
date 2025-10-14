@@ -1,6 +1,16 @@
 # QnA – Animated, AI-assisted document answers
 
+![Working](https://img.shields.io/badge/status-working-brightgreen)
+
 QnA is a full-stack workspace that lets teams upload structured or unstructured documents and interrogate them through a conversational agent. The backend blends Django REST Framework with LangChain/LangGraph tooling, while the frontend pairs React + TypeScript with motion-first UI powered by GSAP and Framer Motion.
+
+## 🖼️ Preview
+
+<div align="center">
+	<img src="frontend/public/Axon1.png" alt="QnA dashboard hero" width="30%" />
+	<img src="frontend/public/Axon2.png" alt="Document management view" width="30%" />
+	<img src="frontend/public/Axon3.png" alt="Conversation flow" width="30%" />
+</div>
 
 ---
 
@@ -74,7 +84,7 @@ npm run dev                     # launches on http://localhost:5173
 
 ---
 
-## � Environment variables
+## 🔐 Environment variables
 
 ### Backend (`backend/.env`)
 
@@ -117,7 +127,7 @@ The backend test suite uses a stub LLM when OpenAI credentials are missing, so C
 
 ---
 
-## �️ Key directories
+## 📁 Key directories
 
 ```
 QnA/
@@ -138,7 +148,7 @@ QnA/
 
 ---
 
-## � API surface
+## 🌐 API surface
 
 All endpoints are prefixed with `/api/`.
 
@@ -180,7 +190,7 @@ Responses return conversation objects with nested messages for easy frontend con
 
 ---
 
-## � License
+## 📝 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
