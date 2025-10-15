@@ -1,4 +1,11 @@
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_tavily import TavilySearch
+from langgraph.prebuilt import create_react_agent
+
+import getpass
+import os
+
+if not os.environ.get("TAVILY_API_KEY"):
+    os.environ["TAVILY_API_KEY"] = getpass.getpass("Tavily API key:\n")
 
 def load_tavily_search_tool(max_results: int = 3):
     """
@@ -10,4 +17,4 @@ def load_tavily_search_tool(max_results: int = 3):
         TavilySearchResults: An instance of the TavilySearchResults tool.
     """
 
-    return TavilySearchResults(max_results=max_results)
+    return TavilySearch(max_results=max_results)

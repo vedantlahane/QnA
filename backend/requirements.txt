@@ -8,3 +8,4 @@ langchainhub
 pypdf
 langchain-openai
 langchain-unstructured
+langchain-tavily
