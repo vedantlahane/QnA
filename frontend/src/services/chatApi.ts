@@ -9,11 +9,20 @@ export interface RawConversationSummary {
   messageCount?: number;
 }
 
+export interface RawAttachment {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface RawMessage {
   id: string;
   sender: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  attachments?: RawAttachment[];
 }
 
 export interface RawConversationDetail extends RawConversationSummary {
@@ -43,6 +52,7 @@ export interface SendChatPayload {
   message: string;
   conversationId?: string;
   title?: string;
+  documentIds?: string[];
 }
 
 export async function sendChatMessage(payload: SendChatPayload): Promise<RawConversationDetail> {
@@ -58,6 +68,10 @@ export async function sendChatMessage(payload: SendChatPayload): Promise<RawConv
     body.title = payload.title;
   }
 
+  if (payload.documentIds && payload.documentIds.length > 0) {
+    body.document_ids = payload.documentIds;
+  }
+
   const response = await fetch(`${API_BASE_URL}/chat/`, {
     method: 'POST',
     headers: {
@@ -67,4 +81,29 @@ export async function sendChatMessage(payload: SendChatPayload): Promise<RawConv
   });
 
   return handleResponse<RawConversationDetail>(response);
+}
+
+export type UploadedDocument = RawAttachment;
+
+export async function uploadDocument(file: File): Promise<UploadedDocument> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/documents/`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  return handleResponse<UploadedDocument>(response);
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/documents/${documentId}/`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to delete document ${documentId}`);
+  }
 }

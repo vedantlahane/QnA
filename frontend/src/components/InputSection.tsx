@@ -1,14 +1,18 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { deleteDocument, uploadDocument, type UploadedDocument } from '../services/chatApi';
 
 interface FileTile {
   id: string;
   file: File;
   preview?: string;
+  status: 'uploading' | 'uploaded' | 'error';
+  document?: UploadedDocument;
+  error?: string;
 }
 
 interface InputSectionProps {
-  onSend: (message: string) => Promise<void> | void;
+  onSend: (message: string, options?: { documentIds?: string[] }) => Promise<void> | void;
   isHistoryActive: boolean;
   isSending?: boolean;
 }
@@ -23,21 +27,10 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<FileTile[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewsRef = useRef(new Map<string, string>());
-
-  useEffect(() => {
-    return () => {
-      previewsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      previewsRef.current.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isHistoryActive && message) {
-      setMessage('');
-    }
-  }, [isHistoryActive, message]);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const revokePreview = useCallback((id: string) => {
     const url = previewsRef.current.get(id);
@@ -48,21 +41,105 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
   }, []);
 
   useEffect(() => {
-    if (!isHistoryActive || files.length === 0) return;
-    files.forEach(({ id }) => revokePreview(id));
+    return () => {
+      previewsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewsRef.current.clear();
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isHistoryActive && message) {
+      setMessage('');
+    }
+  }, [isHistoryActive, message]);
+
+  useEffect(() => {
+    if (!isHistoryActive || files.length === 0) {
+      return;
+    }
+    files.forEach((tile) => {
+      revokePreview(tile.id);
+      if (tile.document) {
+        void deleteDocument(tile.document.id);
+      }
+    });
     setFiles([]);
   }, [files, isHistoryActive, revokePreview]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const speechWindow = window as unknown as SpeechRecognitionWindow;
+    const SpeechRecognitionConstructor =
+      speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionConstructor) {
+      setIsSpeechSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionConstructor();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onerror = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcripts: string[] = [];
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = result[0]?.transcript ?? '';
+        if (transcript) {
+          transcripts.push(transcript);
+        }
+      }
+      if (transcripts.length > 0) {
+        setMessage((prev) => `${prev} ${transcripts.join(' ')}`.trim());
+      }
+    };
+
+    recognitionRef.current = recognition;
+    setIsSpeechSupported(true);
+  }, []);
+
+  const uploadedFileIds = useMemo(
+    () => files.filter((tile) => tile.status === 'uploaded' && tile.document).map((tile) => tile.document!.id),
+    [files],
+  );
+
   const handleSend = async () => {
-  const trimmed = message.trim();
-  if (!trimmed && files.length === 0) return;
-  if (isSending) return;
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    if (isSending) return;
+    if (files.some((tile) => tile.status === 'uploading')) return;
+
     const currentFiles = [...files];
     try {
-      await onSend(trimmed);
+      await onSend(trimmed, { documentIds: uploadedFileIds });
     } finally {
       setMessage('');
-      currentFiles.forEach(({ id }) => revokePreview(id));
+      currentFiles.forEach((tile) => revokePreview(tile.id));
       setFiles([]);
     }
   };
@@ -71,33 +148,96 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
     const selectedFiles = Array.from(event.target.files || []);
     if (!selectedFiles.length) return;
 
-    const enriched = selectedFiles.map((file, index) => {
+    selectedFiles.forEach((file, index) => {
       const id = `${file.name}-${Date.now()}-${index}`;
       let preview: string | undefined;
       if (file.type.startsWith('image/')) {
         preview = URL.createObjectURL(file);
         previewsRef.current.set(id, preview);
       }
-      return { id, file, preview };
+
+      const newTile: FileTile = {
+        id,
+        file,
+        preview,
+        status: 'uploading',
+      };
+
+      setFiles((prev) => [...prev, newTile]);
+
+      uploadDocument(file)
+        .then((document) => {
+          setFiles((prev) =>
+            prev.map((tile) =>
+              tile.id === id
+                ? {
+                    ...tile,
+                    status: 'uploaded',
+                    document,
+                  }
+                : tile,
+            ),
+          );
+        })
+        .catch((error) => {
+          console.error('Failed to upload document', error);
+          setFiles((prev) =>
+            prev.map((tile) =>
+              tile.id === id
+                ? {
+                    ...tile,
+                    status: 'error',
+                    error: 'Upload failed. Remove or retry.',
+                  }
+                : tile,
+            ),
+          );
+        });
     });
 
-    setFiles((prev) => [...prev, ...enriched]);
+    event.target.value = '';
   };
 
   const removeFile = (id: string) => {
+    const tile = files.find((entry) => entry.id === id);
     revokePreview(id);
-    setFiles((prev) => prev.filter((tile) => tile.id !== id));
+    setFiles((prev) => prev.filter((entry) => entry.id !== id));
+
+    if (tile?.document) {
+      void deleteDocument(tile.document.id);
+    }
   };
 
   const handleVoiceCapture = () => {
-    setIsRecording((prev) => !prev);
+    if (!isSpeechSupported || isHistoryActive || isSending) {
+      return;
+    }
+
+    const recognition = recognitionRef.current;
+    if (!recognition) {
+      return;
+    }
+
+    if (isRecording) {
+      recognition.stop();
+    } else {
+      try {
+        recognition.start();
+      } catch (error) {
+        console.error('Speech recognition error', error);
+      }
+    }
   };
 
   const handleUploadTrigger = () => {
+    if (isHistoryActive) return;
     fileInputRef.current?.click();
   };
 
-  const isSendDisabled = (!message.trim() && files.length === 0) || isHistoryActive || isSending;
+  const hasUploadingFiles = files.some((tile) => tile.status === 'uploading');
+  const canSend = message.trim().length > 0;
+  const voiceButtonDisabled = isHistoryActive || isSending || !isSpeechSupported;
+  const isSendDisabled = isHistoryActive || isSending || hasUploadingFiles || !canSend;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -120,8 +260,23 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {files.map(({ id, file, preview }) => (
-                <motion.div
+              {files.map((tile) => {
+                const { id, file, preview, status, error } = tile;
+                const statusLabel =
+                  status === 'uploading'
+                    ? 'Uploading…'
+                    : status === 'uploaded'
+                      ? 'Ready'
+                      : error ?? 'Upload failed';
+                const statusClass =
+                  status === 'error'
+                    ? 'text-red-400'
+                    : status === 'uploading'
+                      ? 'text-amber-300'
+                      : 'text-emerald-300';
+
+                return (
+                  <motion.div
                   key={id}
                   className="group relative min-w-[160px] max-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-white/5 p-3"
                   initial={{ opacity: 0, x: -20 }}
@@ -157,6 +312,7 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
                         {file.name}
                       </p>
                       <p className="text-[10px] text-white/50">{formatFileSize(file.size)}</p>
+                      <p className={`text-[10px] ${statusClass}`}>{statusLabel}</p>
                     </div>
                     <motion.button
                       type="button"
@@ -180,8 +336,9 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
                       </svg>
                     </motion.button>
                   </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
         </AnimatePresence>
@@ -192,14 +349,17 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
             className={`grid h-9 w-9 place-items-center rounded-lg transition ${
               isRecording
                 ? 'bg-red-500/20 text-red-400'
-                : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                : voiceButtonDisabled
+                  ? 'bg-white/5 text-white/30'
+                  : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
             }`}
             aria-label="Voice input"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={voiceButtonDisabled ? {} : { scale: 1.05 }}
+            whileTap={voiceButtonDisabled ? {} : { scale: 0.95 }}
             onClick={handleVoiceCapture}
             animate={isRecording ? { scale: [1, 1.1, 1] } : {}}
             transition={isRecording ? { duration: 1, repeat: Infinity } : {}}
+            disabled={voiceButtonDisabled}
           >
             <svg
               width="18"

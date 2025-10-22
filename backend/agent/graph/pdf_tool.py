@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import List, Optional
+from django.conf import settings
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
@@ -22,20 +23,55 @@ def _load_documents(pdf_path: Path) -> List[Document]:
     loader = PyPDFLoader(str(pdf_path))
     return loader.load()
 
-def _build_vector_store(pdf_path: Path) -> InMemoryVectorStore:
+def _collect_pdf_paths() -> List[Path]:
+    paths: List[Path] = []
+    if DEFAULT_PDF_PATH.exists():
+        paths.append(DEFAULT_PDF_PATH)
+
+    media_root = getattr(settings, "MEDIA_ROOT", None)
+    if media_root:
+        uploads_dir = Path(media_root) / "uploaded_docs"
+        if uploads_dir.exists():
+            paths.extend(sorted(uploads_dir.glob("*.pdf")))
+
+    return paths
+
+
+def _build_vector_store(paths: List[Path]) -> InMemoryVectorStore:
     _require_openai_api_key()
-    documents = _load_documents(pdf_path)
+    documents: List[Document] = []
+    for path in paths:
+        try:
+            documents.extend(_load_documents(path))
+        except FileNotFoundError:
+            continue
+
+    if not documents:
+        raise FileNotFoundError("No PDF documents available for search.")
+
     embeddings = OpenAIEmbeddings()
     return InMemoryVectorStore.from_documents(documents, embedding=embeddings)
 
 # This global variable caches the vector store to avoid rebuilding every query
 _vector_store: Optional[InMemoryVectorStore] = None
 
-def build_pdf_search_tool(pdf_path: Optional[Path] = None) -> InMemoryVectorStore:
+
+def build_pdf_search_tool(pdf_path: Optional[Path] = None, *, force_rebuild: bool = False) -> InMemoryVectorStore:
     global _vector_store
+    if force_rebuild:
+        _vector_store = None
+
     if _vector_store is None:
-        path = pdf_path if pdf_path else DEFAULT_PDF_PATH
-        _vector_store = _build_vector_store(path)
+        if pdf_path:
+            paths = [pdf_path]
+        else:
+            paths = _collect_pdf_paths()
+
+        if not paths:
+            raise FileNotFoundError("No PDF documents have been uploaded yet.")
+
+        _vector_store = _build_vector_store(paths)
+
     return _vector_store
 
 @tool

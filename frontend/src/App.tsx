@@ -8,6 +8,7 @@ import {
   type RawConversationDetail,
   type RawConversationSummary,
   type RawMessage,
+  type RawAttachment,
 } from './services/chatApi';
 
 export type ChatSender = 'user' | 'assistant';
@@ -17,6 +18,7 @@ export interface ChatMessage {
   sender: ChatSender;
   content: string;
   timestamp: string;
+  attachments?: RawAttachment[];
 }
 
 export interface ConversationSummary {
@@ -34,6 +36,7 @@ const mapMessage = (raw: RawMessage): ChatMessage => ({
   sender: raw.sender,
   content: raw.content,
   timestamp: raw.timestamp,
+  attachments: raw.attachments ?? [],
 });
 
 const mapSummary = (raw: RawConversationSummary): ConversationSummary => ({
@@ -101,7 +104,12 @@ const App: React.FC = () => {
     setSelectedHistoryId(detail.id);
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (
+    content: string,
+    options?: {
+      documentIds?: string[];
+    },
+  ) => {
     const trimmed = content.trim();
     if (!trimmed) return;
 
@@ -120,6 +128,7 @@ const App: React.FC = () => {
         message: trimmed,
         conversationId: selectedHistoryId ?? undefined,
         title: selectedHistoryId ? undefined : trimmed,
+        documentIds: options?.documentIds,
       });
 
       updateMessagesFromDetail(detail);

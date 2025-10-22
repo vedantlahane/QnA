@@ -11,7 +11,7 @@ interface MainPanelProps {
   historyConversations: ConversationSummary[];
   selectedHistoryId: string | null;
   onSelectHistory: (conversationId: string) => void;
-  onSendMessage: (content: string) => Promise<void> | void;
+  onSendMessage: (content: string, options?: { documentIds?: string[] }) => Promise<void> | void;
   onStartNewChat: () => void;
   isChatLoading: boolean;
 }

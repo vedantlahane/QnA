@@ -25,6 +25,12 @@ const formatDisplayTime = (timestamp: string) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const formatAttachmentSize = (size: number) => {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const ChatDisplay: React.FC<ChatDisplayProps> = ({
   view,
   messages,
@@ -173,6 +179,7 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                   const bubbleClasses = isUser
                     ? 'border border-black/40 bg-[#2563eb]/20 text-white'
                     : 'border border-black bg-white/5 text-white';
+                  const hasAttachments = (message.attachments?.length ?? 0) > 0;
 
                   return (
                     <motion.div
@@ -226,6 +233,38 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                         </div>
                         <div className={`w-fit rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg backdrop-blur ${bubbleClasses}`}>
                           <p className="whitespace-pre-wrap">{message.content}</p>
+                          {hasAttachments && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {message.attachments!.map((attachment) => (
+                                <a
+                                  key={attachment.id}
+                                  href={attachment.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 transition hover:border-white/20 hover:bg-white/10"
+                                >
+                                  <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                                  </svg>
+                                  <span className="truncate max-w-[120px]" title={attachment.name}>
+                                    {attachment.name}
+                                  </span>
+                                  <span className="text-white/40">
+                                    {formatAttachmentSize(attachment.size)}
+                                  </span>
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         </div>
                     </motion.div>
