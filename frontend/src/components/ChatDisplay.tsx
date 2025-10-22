@@ -270,8 +270,8 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                           </span>
                         </div>
                         <p className="text-sm text-white/60">{conversation.summary}</p>
-                        <div className="flex items-center gap-2 text-xs text-white/40">
-                          <span>{conversation.messages.length} messages</span>
+            <div className="flex items-center gap-2 text-xs text-white/40">
+              <span>{conversation.messageCount ?? conversation.messages?.length ?? 0} messages</span>
                           <span>•</span>
                           <span>Tap to reopen this chat</span>
                         </div>

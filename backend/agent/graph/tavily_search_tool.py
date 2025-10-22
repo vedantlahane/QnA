@@ -1,52 +1,36 @@
-from langchain_tavily import TavilySearch
-from langgraph.prebuilt import create_react_agent
-from langchain.chat_models import init_chat_model
-from langchain import hub
 import os
 from dotenv import load_dotenv
+from langchain_tavily import TavilySearch
+from langchain_core.tools import tool
 
 load_dotenv()
 
-if not os.environ.get("TAVILY_API_KEY"):
-    import getpass
-    os.environ["TAVILY_API_KEY"] = getpass.getpass("Tavily API key:\n")
+def _require_tavily_api_key() -> None:
+    if not os.getenv("TAVILY_API_KEY"):
+        raise EnvironmentError("TAVILY_API_KEY environment variable is not set")
 
-def load_tavily_search_tool(max_results: int = 3):
-    """
-    This function initializes and returns a Tavily search tool.
-    Args:
-        max_results (int): The maximum number of search results to return. Default is 3.
+# Initialize TavilySearch instance once and reuse
+_tavily_search = None
 
-    Returns:
-        TavilySearchResults: An instance of the TavilySearchResults tool.
-    """
-    return TavilySearch(max_results=max_results)
+def get_tavily_search_tool(max_results: int = 3) -> TavilySearch:
+    global _tavily_search
+    _require_tavily_api_key()
+    if _tavily_search is None:
+        _tavily_search = TavilySearch(max_results=max_results)
+    return _tavily_search
 
-def create_tavily_search_agent():
+@tool
+def tavily_search(query: str) -> str:
     """
-    Creates a LangGraph agent equipped with the Tavily search tool for web search capabilities.
-    
-    Returns:
-        Compiled graph: A LangGraph agent that can perform web searches using Tavily.
+    Search using Tavily API and return top results as string.
     """
-    # Initialize the LLM
-    api_key = os.getenv("OPENAI_API_KEY")
-    if api_key:
-        os.environ["OPENAI_API_KEY"] = api_key
-    llm = init_chat_model("openai:gpt-4o", temperature=0)
-    
-    # Load the Tavily search tool
-    tavily_tool = load_tavily_search_tool()
-    
-    # Pull a system prompt for web search agent
-    prompt_template = hub.pull("hwchase17/openai-tools-agent")
-    system_message = prompt_template.format()
-    
-    # Create the agent
-    agent_executor = create_react_agent(
-        model=llm,
-        tools=[tavily_tool],
-        prompt=system_message,
-    )
-    
-    return agent_executor
+    try:
+        searcher = get_tavily_search_tool()
+    except EnvironmentError as exc:
+        return f"Tavily search is unavailable: {exc}"
+
+    results = searcher.run(query)
+    if not results:
+        return "No results found."
+    # Format results as needed; here joining texts
+    return "\n\n".join(result.summary for result in results)

@@ -11,8 +11,9 @@ interface MainPanelProps {
   historyConversations: ConversationSummary[];
   selectedHistoryId: string | null;
   onSelectHistory: (conversationId: string) => void;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string) => Promise<void> | void;
   onStartNewChat: () => void;
+  isChatLoading: boolean;
 }
 
 const MainPanel: React.FC<MainPanelProps> = ({
@@ -24,6 +25,7 @@ const MainPanel: React.FC<MainPanelProps> = ({
   onSelectHistory,
   onSendMessage,
   onStartNewChat,
+  isChatLoading,
 }) => {
   const selectedHistory = useMemo(
     () =>
@@ -139,6 +141,7 @@ const MainPanel: React.FC<MainPanelProps> = ({
       <InputSection
         onSend={onSendMessage}
         isHistoryActive={currentView === "history"}
+        isSending={isChatLoading}
       />
     </div>
   );

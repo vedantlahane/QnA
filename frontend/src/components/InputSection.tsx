@@ -8,8 +8,9 @@ interface FileTile {
 }
 
 interface InputSectionProps {
-  onSend: (message: string) => void;
+  onSend: (message: string) => Promise<void> | void;
   isHistoryActive: boolean;
+  isSending?: boolean;
 }
 
 const formatFileSize = (size: number) => {
@@ -18,7 +19,7 @@ const formatFileSize = (size: number) => {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive }) => {
+const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, isSending = false }) => {
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<FileTile[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -52,13 +53,18 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive }) 
     setFiles([]);
   }, [files, isHistoryActive, revokePreview]);
 
-  const handleSend = () => {
-    const trimmed = message.trim();
-    if (!trimmed && files.length === 0) return;
-    onSend(trimmed);
-    setMessage('');
-    files.forEach(({ id }) => revokePreview(id));
-    setFiles([]);
+  const handleSend = async () => {
+  const trimmed = message.trim();
+  if (!trimmed && files.length === 0) return;
+  if (isSending) return;
+    const currentFiles = [...files];
+    try {
+      await onSend(trimmed);
+    } finally {
+      setMessage('');
+      currentFiles.forEach(({ id }) => revokePreview(id));
+      setFiles([]);
+    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,13 +97,13 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive }) 
     fileInputRef.current?.click();
   };
 
-  const isSendDisabled = (!message.trim() && files.length === 0) || isHistoryActive;
+  const isSendDisabled = (!message.trim() && files.length === 0) || isHistoryActive || isSending;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       if (!isSendDisabled) {
-        handleSend();
+        void handleSend();
       }
     }
   };
@@ -252,7 +258,7 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive }) 
             disabled={isSendDisabled}
             whileHover={isSendDisabled ? {} : { scale: 1.05 }}
             whileTap={isSendDisabled ? {} : { scale: 0.95 }}
-            onClick={handleSend}
+            onClick={() => void handleSend()}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

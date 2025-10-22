@@ -1,6 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MainPanel from './components/MainPanel';
+import {
+  fetchConversation,
+  fetchConversations,
+  sendChatMessage,
+  type RawConversationDetail,
+  type RawConversationSummary,
+  type RawMessage,
+} from './services/chatApi';
 
 export type ChatSender = 'user' | 'assistant';
 
@@ -16,103 +24,56 @@ export interface ConversationSummary {
   title: string;
   updatedAt: string;
   summary: string;
-  messages: ChatMessage[];
+  updatedAtISO?: string;
+  messageCount?: number;
+  messages?: ChatMessage[];
 }
 
-const App: React.FC = () => {
-  const historyConversations = useMemo<ConversationSummary[]>(
-    () => [
-      {
-        id: 'product-launch',
-        title: 'Product launch ideas',
-        updatedAt: 'Sep 12, 2025',
-        summary: 'Exploring creative launch angles for Axon AI.',
-        messages: [
-          {
-            id: 'pl-1',
-            sender: 'user',
-            content: 'I need three compelling launch ideas for the Axon AI copilot.',
-            timestamp: '2025-09-12T09:12:00Z',
-          },
-          {
-            id: 'pl-2',
-            sender: 'assistant',
-            content:
-              'Consider a live, streamed “build your first agent” challenge, a partner hackathon with real-world prizes, and a guided migration clinic for legacy teams.',
-            timestamp: '2025-09-12T09:12:20Z',
-          },
-          {
-            id: 'pl-3',
-            sender: 'user',
-            content: 'Give me three memorable taglines for the challenge.',
-            timestamp: '2025-09-12T09:13:01Z',
-          },
-        ],
-      },
-      {
-        id: 'financial-model',
-        title: 'Financial model walkthrough',
-        updatedAt: 'Aug 28, 2025',
-        summary: 'Deep dive on assumptions for ARR growth and churn.',
-        messages: [
-          {
-            id: 'fm-1',
-            sender: 'user',
-            content: 'Summarise the ARR growth assumptions from the spreadsheet I uploaded.',
-            timestamp: '2025-08-28T14:32:00Z',
-          },
-          {
-            id: 'fm-2',
-            sender: 'assistant',
-            content:
-              'The model assumes 18% ARR growth QoQ driven by enterprise expansion and a 6% logo churn rate mitigated by a new success program.',
-            timestamp: '2025-08-28T14:32:45Z',
-          },
-          {
-            id: 'fm-3',
-            sender: 'user',
-            content: 'Does the churn assumption align with last quarter’s reality?',
-            timestamp: '2025-08-28T14:33:10Z',
-          },
-          {
-            id: 'fm-4',
-            sender: 'assistant',
-            content:
-              'Last quarter churn was 5.4%, so the model is slightly conservative; we could tighten to 5.6% if we expect the new onboarding flow to land.',
-            timestamp: '2025-08-28T14:33:40Z',
-          },
-        ],
-      },
-      {
-        id: 'support-playbook',
-        title: 'Support automation playbook',
-        updatedAt: 'Jul 14, 2025',
-        summary: 'Evaluating AI responses for Tier 1 triage scripts.',
-        messages: [
-          {
-            id: 'sp-1',
-            sender: 'user',
-            content: 'Draft an escalation flow for unresolved Tier 1 tickets.',
-            timestamp: '2025-07-14T11:08:00Z',
-          },
-          {
-            id: 'sp-2',
-            sender: 'assistant',
-            content:
-              'Begin with scripted empathy, gather context, attempt knowledge base resolution, then escalate to a human within 12 minutes if confidence < 0.4.',
-            timestamp: '2025-07-14T11:08:35Z',
-          },
-        ],
-      },
-    ],
-    []
-  );
+const mapMessage = (raw: RawMessage): ChatMessage => ({
+  id: raw.id,
+  sender: raw.sender,
+  content: raw.content,
+  timestamp: raw.timestamp,
+});
 
+const mapSummary = (raw: RawConversationSummary): ConversationSummary => ({
+  id: raw.id,
+  title: raw.title || 'New chat',
+  summary: raw.summary ?? '',
+  updatedAt: raw.updatedAt,
+  updatedAtISO: raw.updatedAtISO,
+  messageCount: raw.messageCount ?? 0,
+});
+
+const sortSummaries = (items: ConversationSummary[]): ConversationSummary[] => {
+  return [...items].sort((a, b) => {
+    const aTime = a.updatedAtISO ? Date.parse(a.updatedAtISO) : Date.parse(a.updatedAt);
+    const bTime = b.updatedAtISO ? Date.parse(b.updatedAtISO) : Date.parse(b.updatedAt);
+    return bTime - aTime;
+  });
+};
+
+const App: React.FC = () => {
+  const [historyConversations, setHistoryConversations] = useState<ConversationSummary[]>([]);
   const [currentView, setCurrentView] = useState<'chat' | 'history'>('chat');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSidebarItem, setActiveSidebarItem] = useState('chat');
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+
+  const refreshConversations = useCallback(async () => {
+    try {
+      const items = await fetchConversations();
+      setHistoryConversations(sortSummaries(items.map(mapSummary)));
+    } catch (error) {
+      console.error('Failed to load conversations', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshConversations();
+  }, [refreshConversations]);
 
   const handleSidebarSelect = (itemId: string) => {
     setActiveSidebarItem(itemId);
@@ -126,30 +87,74 @@ const App: React.FC = () => {
     setActiveSidebarItem(view);
   };
 
-  const handleSendMessage = (content: string) => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    const timestamp = new Date().toISOString();
-    setCurrentMessages((prev) => [
-      ...prev,
-      {
-        id: `user-${timestamp}`,
-        sender: 'user',
-        content: trimmed,
-        timestamp,
-      },
-    ]);
-    setSelectedHistoryId(null);
+  const applyConversationUpdate = (detail: RawConversationDetail) => {
+    const summary = mapSummary(detail);
+    setHistoryConversations((prev) => {
+      const filtered = prev.filter((item) => item.id !== summary.id);
+      return sortSummaries([summary, ...filtered]);
+    });
   };
 
-  const handleSelectHistoryConversation = (conversationId: string) => {
-    const conversation = historyConversations.find((item) => item.id === conversationId);
-    if (!conversation) return;
+  const updateMessagesFromDetail = (detail: RawConversationDetail) => {
+    const mappedMessages = detail.messages.map(mapMessage);
+    setCurrentMessages(mappedMessages);
+    setSelectedHistoryId(detail.id);
+  };
 
-    setCurrentMessages(conversation.messages.map((message) => ({ ...message })));
+  const handleSendMessage = async (content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+
+    const optimisticMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      content: trimmed,
+      timestamp: new Date().toISOString(),
+    };
+
+    setCurrentMessages((prev) => [...prev, optimisticMessage]);
+    setIsChatLoading(true);
+
+    try {
+      const detail = await sendChatMessage({
+        message: trimmed,
+        conversationId: selectedHistoryId ?? undefined,
+        title: selectedHistoryId ? undefined : trimmed,
+      });
+
+      updateMessagesFromDetail(detail);
+      applyConversationUpdate(detail);
+      setCurrentView('chat');
+      setActiveSidebarItem('chat');
+    } catch (error) {
+      console.error('Failed to send chat message', error);
+      const fallbackReply: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        sender: 'assistant',
+        content: 'Sorry, I could not reach the assistant just now.',
+        timestamp: new Date().toISOString(),
+      };
+      setCurrentMessages((prev) => [...prev, fallbackReply]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleSelectHistoryConversation = async (conversationId: string) => {
     setSelectedHistoryId(conversationId);
     setCurrentView('chat');
     setActiveSidebarItem('chat');
+    setIsChatLoading(true);
+
+    try {
+      const detail = await fetchConversation(conversationId);
+      updateMessagesFromDetail(detail);
+      applyConversationUpdate(detail);
+    } catch (error) {
+      console.error('Failed to load conversation detail', error);
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   const handleStartNewChat = () => {
@@ -172,11 +177,12 @@ const App: React.FC = () => {
         currentView={currentView}
         onViewChange={handleViewChange}
         messages={currentMessages}
-        historyConversations={historyConversations}
+  historyConversations={historyConversations}
         selectedHistoryId={selectedHistoryId}
         onSelectHistory={handleSelectHistoryConversation}
         onSendMessage={handleSendMessage}
         onStartNewChat={handleStartNewChat}
+        isChatLoading={isChatLoading}
       />
     </div>
   );
