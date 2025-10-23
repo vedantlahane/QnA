@@ -25,7 +25,6 @@ class SQLConnectionDetails:
 
 AVAILABLE_DATABASE_MODES = ("sqlite", "url")
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_SQLITE_NAME = os.getenv("SQLITE_DB_NAME", "db.sqlite3")
 _CURRENT_CONNECTION: ContextVar[Optional[SQLConnectionDetails]] = ContextVar(
     "current_sql_connection", default=None
 )
@@ -38,17 +37,19 @@ def _require_openai_api_key() -> None:
 
 
 def _normalise_sqlite_path(raw_path: Optional[str]) -> Path:
-    candidate = (raw_path or "").strip() or _DEFAULT_SQLITE_NAME
+    candidate = (raw_path or "").strip()
+    if not candidate:
+        raise ValueError("A SQLite database path is required.")
     path = Path(candidate)
     if not path.is_absolute():
         path = _BACKEND_ROOT / path
     return path.resolve()
 
 
-def _default_connection() -> SQLConnectionDetails:
+def get_environment_connection() -> Optional[SQLConnectionDetails]:
     database_url = (os.getenv("DATABASE_URL") or "").strip()
     if database_url:
-        label = os.getenv("DATABASE_LABEL", "DATABASE_URL")
+        label = os.getenv("DATABASE_LABEL") or "Environment database"
         return SQLConnectionDetails(
             mode="url",
             identifier=database_url,
@@ -58,19 +59,18 @@ def _default_connection() -> SQLConnectionDetails:
         )
 
     sqlite_env_path = os.getenv("SQLITE_DB_PATH")
-    sqlite_path = _normalise_sqlite_path(sqlite_env_path)
-    label = f"SQLite ({sqlite_path.name})"
-    return SQLConnectionDetails(
-        mode="sqlite",
-        identifier=str(sqlite_path),
-        uri=f"sqlite:///{sqlite_path}",
-        label=label,
-        sqlite_path=str(sqlite_path),
-    )
+    if sqlite_env_path:
+        sqlite_path = _normalise_sqlite_path(sqlite_env_path)
+        label = os.getenv("DATABASE_LABEL") or f"SQLite ({sqlite_path.name})"
+        return SQLConnectionDetails(
+            mode="sqlite",
+            identifier=str(sqlite_path),
+            uri=f"sqlite:///{sqlite_path}",
+            label=label,
+            sqlite_path=str(sqlite_path),
+        )
 
-
-def get_default_connection() -> SQLConnectionDetails:
-    return _default_connection()
+    return None
 
 
 def resolve_connection_details(
@@ -126,7 +126,9 @@ def clear_sql_toolkit_cache(identifier: Optional[str] = None) -> None:
 
 def build_sql_tool(connection: Optional[SQLConnectionDetails] = None) -> SQLDatabaseToolkit:
     _require_openai_api_key()
-    target = connection or _CURRENT_CONNECTION.get() or _default_connection()
+    target = connection or _CURRENT_CONNECTION.get()
+    if target is None:
+        raise RuntimeError("No SQL connection configured.")
     llm = init_chat_model("openai:gpt-4o", temperature=0)
     db = SQLDatabase.from_uri(target.uri)
     return SQLDatabaseToolkit(db=db, llm=llm)
@@ -134,7 +136,9 @@ def build_sql_tool(connection: Optional[SQLConnectionDetails] = None) -> SQLData
 
 def get_sql_toolkit(force_rebuild: bool = False) -> Optional[SQLDatabaseToolkit]:
     connection = _CURRENT_CONNECTION.get()
-    target = connection or _default_connection()
+    target = connection
+    if target is None:
+        return None
     cache_key = target.identifier
 
     if force_rebuild:

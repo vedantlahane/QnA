@@ -11,9 +11,10 @@ interface DatabaseConnectionModalProps {
   onClose: () => void;
   config: DatabaseConnectionSettings | null;
   availableModes: DatabaseMode[];
+  environmentFallback: DatabaseConnectionSettings | null;
   onSave: (payload: UpdateDatabaseConnectionPayload) => Promise<void> | void;
   onTest: (payload: UpdateDatabaseConnectionPayload) => Promise<void> | void;
-  onReset: () => Promise<void> | void;
+  onDisconnect: () => Promise<void> | void;
   isBusy: boolean;
   isLoading: boolean;
   feedback: { status: 'success' | 'error'; message: string } | null;
@@ -30,9 +31,10 @@ const DatabaseConnectionModal: React.FC<DatabaseConnectionModalProps> = ({
   onClose,
   config,
   availableModes,
+  environmentFallback,
   onSave,
   onTest,
-  onReset,
+  onDisconnect,
   isBusy,
   isLoading,
   feedback,
@@ -63,8 +65,21 @@ const DatabaseConnectionModal: React.FC<DatabaseConnectionModalProps> = ({
   const isRemote = mode === 'url';
   const canSubmit = isRemote ? trimmedConnectionString.length > 0 : trimmedSqlitePath.length > 0;
   const disableInteractions = isBusy || isLoading;
-  const resetDisabled = !config || config.isDefault || disableInteractions;
   const environmentManaged = config?.source === 'environment';
+  const hasCustomConfig = Boolean(config);
+
+  const guidanceMessage = (() => {
+    if (environmentManaged && config?.isDefault) {
+      return "The application is currently using the server's environment configuration. You can override it here for your account.";
+    }
+    if (!hasCustomConfig && environmentFallback) {
+      return `Environment default available: ${environmentFallback.label}. Save here to override for your account.`;
+    }
+    if (!hasCustomConfig) {
+      return 'No database connected. Provide connection details below to enable SQL queries.';
+    }
+    return null;
+  })();
 
   const buildPayload = (extra?: Partial<UpdateDatabaseConnectionPayload>): UpdateDatabaseConnectionPayload => ({
     mode,
@@ -89,11 +104,8 @@ const DatabaseConnectionModal: React.FC<DatabaseConnectionModalProps> = ({
     await Promise.resolve(onTest(buildPayload()));
   };
 
-  const handleReset = async () => {
-    if (resetDisabled) {
-      return;
-    }
-    await Promise.resolve(onReset());
+  const handleDisconnect = async () => {
+    await Promise.resolve(onDisconnect());
   };
 
   return (
@@ -141,9 +153,9 @@ const DatabaseConnectionModal: React.FC<DatabaseConnectionModalProps> = ({
               Choose how Axon connects to your SQL database. Use a local SQLite file or a hosted connection string.
             </p>
 
-            {environmentManaged && config?.isDefault && (
-              <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                The application is currently using the server&apos;s environment configuration. You can override it here for your account.
+            {guidanceMessage && (
+              <div className="mt-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white/70">
+                {guidanceMessage}
               </div>
             )}
 
@@ -265,11 +277,11 @@ const DatabaseConnectionModal: React.FC<DatabaseConnectionModalProps> = ({
                 </div>
                 <button
                   type="button"
-                  className="rounded-xl border border-white/10 px-3 py-2 text-xs uppercase tracking-[0.2em] text-white/50 transition hover:border-white/30 hover:text-white disabled:opacity-40"
-                  onClick={handleReset}
-                  disabled={resetDisabled}
+                  className="rounded-xl border border-white/10 px-3 py-2 text-xs uppercase tracking-[0.2em] text-rose-300 transition hover:border-rose-400/60 hover:text-rose-200 disabled:opacity-40"
+                  onClick={handleDisconnect}
+                  disabled={disableInteractions || !hasCustomConfig}
                 >
-                  Reset to default
+                  Disconnect
                 </button>
               </div>
 

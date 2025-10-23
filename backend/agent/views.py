@@ -21,7 +21,7 @@ from .graph.sql_tool import (
 	AVAILABLE_DATABASE_MODES,
 	SQLConnectionDetails,
 	clear_sql_toolkit_cache,
-	get_default_connection,
+	get_environment_connection,
 	resolve_connection_details,
 	test_sql_connection,
 	use_sql_connection,
@@ -423,14 +423,21 @@ def _get_user_database_connection(user: Any) -> Optional[DatabaseConnection]:
 		return None
 
 
-def _database_connection_payload(user: Any) -> Dict[str, Any]:
+
+def _database_connection_payload(user: Any) -> Optional[Dict[str, Any]]:
 	instance = _get_user_database_connection(user)
 	if instance:
 		details = _resolve_user_database_details(user)
 		if details:
 			return _serialise_database_connection(instance=instance, details=details, source="user")
-	default_details = get_default_connection()
-	return _serialise_database_connection(instance=None, details=default_details, source="environment")
+	return None
+
+
+def _environment_connection_payload() -> Optional[Dict[str, Any]]:
+	env_details = get_environment_connection()
+	if env_details is None:
+		return None
+	return _serialise_database_connection(instance=None, details=env_details, source="environment")
 
 
 def _parse_database_payload(payload: Dict[str, Any]) -> Dict[str, Optional[str]]:
@@ -469,10 +476,12 @@ def database_connection_view(request: HttpRequest) -> JsonResponse:
 
 	if request.method == "GET":
 		payload = _database_connection_payload(request.user)
+		env_payload = _environment_connection_payload()
 		return JsonResponse(
 			{
 				"connection": payload,
 				"availableModes": list(AVAILABLE_DATABASE_MODES),
+				"environmentFallback": env_payload,
 			}
 		)
 
@@ -485,16 +494,13 @@ def database_connection_view(request: HttpRequest) -> JsonResponse:
 			clear_sql_toolkit_cache(identifier)
 		else:
 			clear_sql_toolkit_cache()
-		default_payload = _serialise_database_connection(
-			instance=None,
-			details=get_default_connection(),
-			source="environment",
-		)
+		env_payload = _environment_connection_payload()
 		return JsonResponse(
 			{
 				"status": "reset",
-				"connection": default_payload,
+				"connection": None,
 				"availableModes": list(AVAILABLE_DATABASE_MODES),
+				"environmentFallback": env_payload,
 			}
 		)
 
@@ -559,6 +565,7 @@ def database_connection_view(request: HttpRequest) -> JsonResponse:
 			"connection": response_payload,
 			"availableModes": list(AVAILABLE_DATABASE_MODES),
 			"tested": should_test,
+			"environmentFallback": _environment_connection_payload(),
 		}
 	)
 

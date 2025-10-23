@@ -54,8 +54,9 @@ export interface DatabaseConnectionSettings {
 }
 
 export interface DatabaseConnectionEnvelope {
-  connection: DatabaseConnectionSettings;
+  connection: DatabaseConnectionSettings | null;
   availableModes: DatabaseMode[];
+  environmentFallback?: DatabaseConnectionSettings | null;
   tested?: boolean;
 }
 

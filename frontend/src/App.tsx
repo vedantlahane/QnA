@@ -94,6 +94,7 @@ const App: React.FC = () => {
   const [databaseModalOpen, setDatabaseModalOpen] = useState(false);
   const [databaseSettings, setDatabaseSettings] = useState<DatabaseConnectionSettings | null>(null);
   const [databaseModes, setDatabaseModes] = useState<DatabaseMode[]>([]);
+  const [environmentFallback, setEnvironmentFallback] = useState<DatabaseConnectionSettings | null>(null);
   const [isDatabaseLoading, setIsDatabaseLoading] = useState(false);
   const [isDatabaseBusy, setIsDatabaseBusy] = useState(false);
   const [databaseFeedback, setDatabaseFeedback] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
@@ -140,6 +141,7 @@ const App: React.FC = () => {
     if (!currentUser) {
       setDatabaseSettings(null);
       setDatabaseModes([]);
+      setEnvironmentFallback(null);
       setIsDatabaseLoading(false);
       return;
     }
@@ -150,6 +152,7 @@ const App: React.FC = () => {
         const result = await fetchDatabaseConnectionSettings();
         setDatabaseSettings(result.connection);
         setDatabaseModes(result.availableModes);
+        setEnvironmentFallback(result.environmentFallback ?? null);
       } catch (error) {
         console.error('Failed to load database settings', error);
       } finally {
@@ -185,6 +188,7 @@ const App: React.FC = () => {
         const result = await fetchDatabaseConnectionSettings();
         setDatabaseSettings(result.connection);
         setDatabaseModes(result.availableModes);
+        setEnvironmentFallback(result.environmentFallback ?? null);
       } catch (error) {
         setDatabaseFeedback({
           status: 'error',
@@ -209,6 +213,7 @@ const App: React.FC = () => {
       const result = await updateDatabaseConnectionSettings(payload);
       setDatabaseSettings(result.connection);
       setDatabaseModes(result.availableModes);
+      setEnvironmentFallback(result.environmentFallback ?? null);
       const successMessage = payload.testConnection
         ? 'Database connection saved and verified.'
         : 'Database connection updated.';
@@ -243,7 +248,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleResetDatabaseSettings = async () => {
+  const handleDisconnectDatabase = async () => {
     setIsDatabaseBusy(true);
     setDatabaseFeedback(null);
 
@@ -251,9 +256,10 @@ const App: React.FC = () => {
       const result = await clearDatabaseConnectionSettings();
       setDatabaseSettings(result.connection);
       setDatabaseModes(result.availableModes);
+      setEnvironmentFallback(result.environmentFallback ?? null);
       setDatabaseFeedback({
         status: 'success',
-        message: 'Reverted to the default database configuration.',
+        message: 'Database connection removed. Configure a new source to run SQL queries.',
       });
     } catch (error) {
       setDatabaseFeedback({
@@ -313,6 +319,7 @@ const App: React.FC = () => {
       setDatabaseModalOpen(false);
       setDatabaseSettings(null);
       setDatabaseModes([]);
+      setEnvironmentFallback(null);
       setDatabaseFeedback(null);
     }
   };
@@ -478,11 +485,11 @@ const App: React.FC = () => {
     }
   };
 
-  const databaseSummary = databaseSettings
-    ? databaseSettings.displayName
-    : currentUser
-      ? 'Default database'
-      : 'Sign in';
+  const databaseSummary = (() => {
+    if (!currentUser) return 'Sign in';
+    if (databaseSettings) return databaseSettings.displayName || 'Connected';
+    return 'Select database';
+  })();
 
   return (
     <div className="flex h-screen text-white bg-[#030407] dark:bg-[radial-gradient(ellipse_at_top,_rgba(25,40,85,0.35),_transparent_70%)]">
@@ -501,7 +508,7 @@ const App: React.FC = () => {
         currentView={currentView}
         onViewChange={handleViewChange}
         messages={currentMessages}
-      historyConversations={historyConversations}
+        historyConversations={historyConversations}
         selectedHistoryId={selectedHistoryId}
         onSelectHistory={handleSelectHistoryConversation}
         onSendMessage={handleSendMessage}
@@ -534,9 +541,10 @@ const App: React.FC = () => {
         onClose={handleCloseDatabaseModal}
         config={databaseSettings}
         availableModes={databaseModes}
+        environmentFallback={environmentFallback}
         onSave={handleSaveDatabaseSettings}
         onTest={handleTestDatabaseSettings}
-        onReset={handleResetDatabaseSettings}
+        onDisconnect={handleDisconnectDatabase}
         isBusy={isDatabaseBusy}
         isLoading={isDatabaseLoading}
         feedback={databaseFeedback}
