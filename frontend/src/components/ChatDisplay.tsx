@@ -9,6 +9,8 @@ interface ChatDisplayProps {
   selectedHistoryId: string | null;
   onSelectHistory: (conversationId: string) => void;
   onViewChange: (view: 'chat' | 'history') => void;
+  onDeleteConversation: (conversationId: string) => Promise<void> | void;
+  isChatLoading: boolean;
 }
 
 const suggestions = [
@@ -38,6 +40,8 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
   selectedHistoryId,
   onSelectHistory,
   onViewChange,
+  onDeleteConversation,
+  isChatLoading,
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const showLanding = view === 'chat' && messages.length === 0;
@@ -290,23 +294,58 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                   historyConversations.map((conversation) => {
                     const isSelected = conversation.id === selectedHistoryId;
                     return (
-                      <motion.button
+                      <motion.div
                         key={conversation.id}
-                        type="button"
-                        onClick={() => onSelectHistory(conversation.id)}
-                        className={`flex w-full flex-col gap-2 rounded-2xl border px-5 py-4 text-left transition ${
+                        className={`relative flex w-full flex-col gap-2 rounded-2xl border px-5 py-4 text-left transition ${
                           isSelected
                             ? 'border-[#2563eb] bg-[#2563eb]/15 text-white'
                             : 'border-white/10 bg-white/5 text-white/80 hover:border-white/20 hover:bg-white/10'
                         }`}
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.99 }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSelectHistory(conversation.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSelectHistory(conversation.id);
+                          }
+                        }}
                       >
                         <div className="flex items-center justify-between gap-3">
                           <h3 className="text-base font-semibold text-white">{conversation.title}</h3>
-                          <span className="text-xs uppercase tracking-[0.2em] text-white/40">
-                            {conversation.updatedAt}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs uppercase tracking-[0.2em] text-white/40">
+                              {conversation.updatedAt}
+                            </span>
+                            <button
+                              type="button"
+                              className="rounded-lg border border-transparent p-1 text-white/40 hover:border-white/20 hover:text-white/80"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void onDeleteConversation(conversation.id);
+                              }}
+                              aria-label="Delete conversation"
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                                <line x1="14" y1="11" x2="14" y2="17" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         <p className="text-sm text-white/60">{conversation.summary}</p>
             <div className="flex items-center gap-2 text-xs text-white/40">
@@ -314,13 +353,61 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({
                           <span>•</span>
                           <span>Tap to reopen this chat</span>
                         </div>
-                      </motion.button>
+                      </motion.div>
                     );
                   })
                 )}
               </motion.div>
             )}
           </AnimatePresence>
+          {view === 'chat' && !showLanding && isChatLoading && messages.length > 0 && messages[messages.length - 1]?.sender === 'user' && (
+            <motion.div
+              key="assistant-typing"
+              className="mt-6 flex w-full items-start gap-4"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+            >
+              <div
+                className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/10 text-white"
+                aria-hidden
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M4 4h9l7 8-7 8H4l7-8z" />
+                  <path d="M11 4 7 12l4 8" />
+                </svg>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs text-white/50">
+                  <span className="font-semibold text-white">Axon</span>
+                  <span className="h-1 w-1 rounded-full bg-white/30" aria-hidden />
+                  <span>Thinking…</span>
+                </div>
+                <div className="w-fit rounded-2xl border border-black bg-white/5 px-4 py-3 text-sm leading-relaxed text-white shadow-lg">
+                  <div className="flex items-center gap-2">
+                    {[0, 1, 2].map((index) => (
+                      <motion.span
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={index}
+                        className="h-2 w-2 rounded-full bg-white/70"
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: index * 0.2 }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </section>

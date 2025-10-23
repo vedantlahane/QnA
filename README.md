@@ -28,6 +28,7 @@ QnA is a full-stack workspace that lets teams upload structured or unstructured 
 
 - Secure auth (register, login, logout, profile) with token-based APIs.
 - Document ingestion for PDF, CSV, and SQLite/SQL dumps with automatic RAG tool registration.
+- In-app database connector to swap between local SQLite files and hosted SQL instances per account.
 - Animated dashboard: GSAP hero treatments and Framer Motion for conversations, document cards, and chat flows.
 - Conversation manager with persistent history, document attachments, and streaming-friendly agent responses (falls back to a stub model when API keys are missing so tests still pass).
 - Tavily web search tool wired into the LangGraph agent for fresh context.
@@ -59,6 +60,7 @@ pip install -r requirements.txt
 
 cp .env.example .env            # create if one doesn’t exist
 # populate OPENAI/TAVILY/DJANGO keys (keep the file out of source control)
+# adjust database settings in .env if you prefer a hosted SQL instance
 
 python manage.py migrate
 python manage.py runserver
@@ -95,6 +97,14 @@ TAVILY_API_KEY=tvly-...
 DJANGO_SECRET_KEY=super-secret
 DEBUG=True
 DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+# Database (pick one of the following configurations)
+# 1. Local SQLite (default): optional overrides
+SQLITE_DB_NAME=db.sqlite3       # filename relative to backend/ (default)
+SQLITE_DB_PATH=/abs/path/to/db  # alternative absolute/relative path
+# 2. External SQL database (PostgreSQL/MySQL/etc.)
+DATABASE_URL=postgres://user:pass@host:5432/dbname
+DATABASE_CONN_MAX_AGE=600       # optional persistent connection lifespan in seconds
+DATABASE_SSL_REQUIRE=True       # set to true/false depending on hosting requirements
 ```
 
 > **Security tip:** Keep `.env` files out of commits. Rotate keys immediately if they are exposed.

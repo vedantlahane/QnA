@@ -1,5 +1,6 @@
-Django>=5.0
-django-cors-headers>=4.4
+Django
+django-cors-headers
+dj-database-url
 langchain-community
 langchain-core
 langchain

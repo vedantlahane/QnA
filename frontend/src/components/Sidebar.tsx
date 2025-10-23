@@ -1,5 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import type { UserProfile } from '../services/chatApi';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -7,6 +8,10 @@ interface SidebarProps {
   activeItem: string;
   onSelect: (itemId: string) => void;
   onStartNewChat: () => void;
+  isAuthenticated: boolean;
+  onRequireAuth: (mode: 'signin' | 'signup') => void;
+  currentUser: UserProfile | null;
+  onSignOut: () => Promise<void> | void;
 }
 
 interface NavItem {
@@ -25,7 +30,17 @@ const baseIconProps = {
   strokeLinejoin: 'round' as const,
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSelect, onStartNewChat }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  collapsed,
+  onToggle,
+  activeItem,
+  onSelect,
+  onStartNewChat,
+  isAuthenticated,
+  onRequireAuth,
+  currentUser,
+  onSignOut,
+}) => {
   const [darkTheme, setDarkTheme] = useState(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -46,6 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSe
       localStorage.setItem('theme', 'light');
     }
   }, [darkTheme]);
+
 
   const navItems = useMemo<NavItem[]>(
     () => [
@@ -201,7 +217,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSe
       >
         <motion.button
           type="button"
-          onClick={onStartNewChat}
+          onClick={() => (isAuthenticated ? onStartNewChat() : onRequireAuth('signup'))}
           className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -223,12 +239,54 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSe
           </span>
           {!collapsed && <span>New chat</span>}
         </motion.button>
+        {isAuthenticated ? (
+          <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white/70">
+            <div className="text-xs uppercase tracking-[0.25em] text-white/40">Account</div>
+            <div className="text-sm font-medium text-white">{currentUser?.name ?? currentUser?.email}</div>
+            <div className="text-xs text-white/50">{currentUser?.email}</div>
+            <motion.button
+              type="button"
+              className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/10 hover:text-rose-200"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                void onSignOut();
+              }}
+            >
+              Sign out
+            </motion.button>
+          </div>
+        ) : (
+          <motion.button
+            type="button"
+            className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => onRequireAuth('signin')}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            {!collapsed && <span>Sign in</span>}
+          </motion.button>
+        )}
         <motion.button
           type="button"
           className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => setDarkTheme(!darkTheme)}
+          onClick={() => setDarkTheme((prev) => !prev)}
         >
           <svg
             width="16"
@@ -250,7 +308,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeItem, onSe
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
           </svg>
-          {!collapsed && <span>Theme</span>}
+          {!collapsed && <span>{darkTheme ? 'Dark theme' : 'Light theme'}</span>}
         </motion.button>
       </div>
     </motion.aside>

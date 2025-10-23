@@ -1,15 +1,44 @@
 import json
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+import secrets
+from datetime import timedelta
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 
+from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.core.files.uploadedfile import UploadedFile
+from django.db import transaction
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from langchain_community.document_loaders import PyPDFLoader
+
 from .graph.agent_backend import generate_response
 from .graph.pdf_tool import build_pdf_search_tool
-from .models import Conversation, Message, MessageAttachment, UploadedDocument
+from .graph.sql_tool import (
+	AVAILABLE_DATABASE_MODES,
+	SQLConnectionDetails,
+	clear_sql_toolkit_cache,
+	get_default_connection,
+	resolve_connection_details,
+	test_sql_connection,
+	use_sql_connection,
+)
+from .graph.tavily_search_tool import get_tavily_search_tool
+from .models import (
+	Conversation,
+	DatabaseConnection,
+	Message,
+	MessageAttachment,
+	PasswordResetToken,
+	UploadedDocument,
+)
+RESET_TOKEN_TTL = timedelta(hours=1)
+
+
+UserModel = get_user_model()
 
 
 def _trim_text(value: str, limit: int) -> str:
@@ -32,6 +61,25 @@ def _serialise_document(document: UploadedDocument, request: Optional[HttpReques
 	}
 
 
+def _serialise_user(user: Any) -> Dict[str, Any]:
+	full_name = user.get_full_name().strip()
+	return {
+		"id": user.pk,
+		"email": user.email,
+		"name": full_name or user.username,
+	}
+
+
+def _ensure_authenticated(request: HttpRequest) -> Optional[JsonResponse]:
+	if not request.user.is_authenticated:
+		return JsonResponse({"error": "Authentication required."}, status=401)
+	return None
+
+
+def _generate_reset_token() -> str:
+	return secrets.token_urlsafe(32)
+
+
 def _serialise_message(instance: Message, request: Optional[HttpRequest] = None) -> Dict[str, Any]:
 	attachments_manager = getattr(instance, "attachments", None)
 	if attachments_manager is not None:
@@ -39,10 +87,17 @@ def _serialise_message(instance: Message, request: Optional[HttpRequest] = None)
 	else:
 		attachment_iterable = MessageAttachment.objects.filter(message=instance).select_related("document")
 
-	attachments = [
-		_serialise_document(attachment.document, request)
-		for attachment in attachment_iterable
-	]
+	attachments: List[Dict[str, Any]] = []
+	current_user_id: Optional[int] = None
+	if request and hasattr(request, "user") and getattr(request.user, "is_authenticated", False):
+		current_user_id = getattr(request.user, "pk", None)
+
+	for attachment in attachment_iterable:
+		document = attachment.document
+		document_user_id = getattr(document, "user_id", None)
+		if current_user_id is not None and document_user_id not in (None, current_user_id):
+			continue
+		attachments.append(_serialise_document(document, request))
 	return {
 		"id": str(instance.pk),
 		"sender": instance.role,
@@ -133,6 +188,220 @@ def _serialise_conversation(
 	return data
 
 
+def _clean_email(value: Any) -> Optional[str]:
+	if not isinstance(value, str):
+		return None
+	email = value.strip().lower()
+	return email or None
+
+
+def _clean_name(value: Any) -> str:
+	if not isinstance(value, str):
+		return ""
+	return value.strip()
+
+
+def _set_user_name(user: Any, raw_name: str) -> None:
+	name = raw_name.strip()
+	if not name:
+		return
+	parts = name.split(None, 1)
+	user.first_name = parts[0]
+	if len(parts) > 1:
+		user.last_name = parts[1]
+	user.save(update_fields=["first_name", "last_name"] if len(parts) > 1 else ["first_name"])
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def register_user(request: HttpRequest) -> JsonResponse:
+	try:
+		payload = json.loads(request.body or b"{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	email = _clean_email(payload.get("email"))
+	password = payload.get("password")
+	name = _clean_name(payload.get("name"))
+
+	if not email or not isinstance(password, str) or len(password) < 8:
+		return JsonResponse({"error": "Provide a valid email and a password with at least 8 characters."}, status=400)
+
+	if UserModel.objects.filter(username=email).exists():
+		return JsonResponse({"error": "An account with this email already exists."}, status=400)
+
+	user = UserModel.objects.create_user(username=email, email=email, password=password)
+	if name:
+		_set_user_name(user, name)
+
+	auth_login(request, user)
+	return JsonResponse({"user": _serialise_user(user)}, status=201)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def login_user(request: HttpRequest) -> JsonResponse:
+	try:
+		payload = json.loads(request.body or b"{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	email = _clean_email(payload.get("email"))
+	password = payload.get("password")
+
+	if not email or not isinstance(password, str):
+		return JsonResponse({"error": "Email and password are required."}, status=400)
+
+	user = authenticate(request, username=email, password=password)
+	if user is None:
+		return JsonResponse({"error": "Invalid credentials."}, status=401)
+
+	auth_login(request, user)
+	return JsonResponse({"user": _serialise_user(user)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def logout_user(request: HttpRequest) -> JsonResponse:
+	auth_logout(request)
+	return JsonResponse({"status": "signed_out"})
+
+
+@require_http_methods(["GET"])
+def current_user(request: HttpRequest) -> JsonResponse:
+	if request.user.is_authenticated:
+		return JsonResponse({"user": _serialise_user(request.user)})
+	return JsonResponse({"user": None})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def request_password_reset(request: HttpRequest) -> JsonResponse:
+	try:
+		payload = json.loads(request.body or b"{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	email = _clean_email(payload.get("email"))
+	if not email:
+		return JsonResponse({"error": "Email is required."}, status=400)
+
+	user = UserModel.objects.filter(username=email).first()
+	reset_token_value: Optional[str] = None
+
+	if user is not None:
+		PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
+		reset_token_value = _generate_reset_token()
+		PasswordResetToken.objects.create(
+			user=user,
+			token=reset_token_value,
+			expires_at=timezone.now() + RESET_TOKEN_TTL,
+		)
+
+	return JsonResponse(
+		{
+			"message": "If an account exists for that email, you'll receive password reset instructions shortly.",
+			"resetToken": reset_token_value,
+		}
+	)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def confirm_password_reset(request: HttpRequest) -> JsonResponse:
+	try:
+		payload = json.loads(request.body or b"{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	token_value = payload.get("token")
+	new_password = payload.get("password")
+
+	if not isinstance(token_value, str) or not token_value.strip():
+		return JsonResponse({"error": "A valid reset token is required."}, status=400)
+
+	if not isinstance(new_password, str) or len(new_password) < 8:
+		return JsonResponse({"error": "Password must be at least 8 characters."}, status=400)
+
+	try:
+		reset_record = PasswordResetToken.objects.select_related("user").get(token=token_value.strip())
+	except PasswordResetToken.DoesNotExist:
+		return JsonResponse({"error": "Invalid or expired reset token."}, status=400)
+
+	if reset_record.used or reset_record.expires_at <= timezone.now():
+		if not reset_record.used:
+			reset_record.used = True
+			reset_record.save(update_fields=["used"])
+		return JsonResponse({"error": "Invalid or expired reset token."}, status=400)
+
+	user = reset_record.user
+
+	with transaction.atomic():
+		user.set_password(new_password)
+		user.save(update_fields=["password"])
+		reset_record.used = True
+		reset_record.save(update_fields=["used"])
+		PasswordResetToken.objects.filter(user=user, used=False).exclude(pk=reset_record.pk).update(used=True)
+
+	auth_login(request, user)
+	return JsonResponse({"user": _serialise_user(user)})
+
+
+_TAVILY_KEYWORDS = {
+	"weather",
+	"temperature",
+	"forecast",
+	"today",
+	"current",
+	"news",
+	"latest",
+	"update",
+	"happening",
+	"now",
+	"stock",
+	"price",
+	"market",
+	"headline",
+	"score",
+	"match",
+	"traffic",
+	"event",
+}
+
+
+def _should_query_tavily(message: str) -> bool:
+	lower_message = message.lower()
+	return any(keyword in lower_message for keyword in _TAVILY_KEYWORDS)
+
+
+def _format_tavily_results(payload: Any) -> Optional[str]:
+	if payload is None:
+		return None
+	if isinstance(payload, str):
+		return payload.strip() or None
+	if not isinstance(payload, dict):
+		return str(payload)
+	lines: List[str] = []
+	answer = payload.get("answer")
+	if isinstance(answer, str) and answer.strip():
+		lines.append(f"Direct answer: {answer.strip()}")
+	results = payload.get("results")
+	if isinstance(results, list):
+		for item in results[:3]:
+			if not isinstance(item, dict):
+				continue
+			title = item.get("title") or item.get("url") or "Result"
+			snippet = item.get("content") or item.get("snippet") or "No summary available."
+			url = item.get("url")
+			formatted = f"- {title}: {snippet}"
+			if url:
+				formatted += f" (Source: {url})"
+			lines.append(formatted)
+	if not lines:
+		return None
+	return "\n".join(lines)
+
+
 def _normalise_document_ids(raw_ids: Any) -> List[int]:
 	if not isinstance(raw_ids, Sequence):
 		return []
@@ -145,21 +414,379 @@ def _normalise_document_ids(raw_ids: Any) -> List[int]:
 	return normalised
 
 
-def _attach_documents_to_message(message: Message, document_ids: Iterable[int]) -> None:
-	documents = list(UploadedDocument.objects.filter(pk__in=document_ids))
-	if not documents:
-		return
-	MessageAttachment.objects.bulk_create(
-		[
-			MessageAttachment(message=message, document=document)
-			for document in documents
-		]
+def _get_user_database_connection(user: Any) -> Optional[DatabaseConnection]:
+	if user is None or not hasattr(user, "database_connection"):
+		return None
+	try:
+		return user.database_connection
+	except DatabaseConnection.DoesNotExist:
+		return None
+
+
+def _database_connection_payload(user: Any) -> Dict[str, Any]:
+	instance = _get_user_database_connection(user)
+	if instance:
+		details = _resolve_user_database_details(user)
+		if details:
+			return _serialise_database_connection(instance=instance, details=details, source="user")
+	default_details = get_default_connection()
+	return _serialise_database_connection(instance=None, details=default_details, source="environment")
+
+
+def _parse_database_payload(payload: Dict[str, Any]) -> Dict[str, Optional[str]]:
+	mode = payload.get("mode")
+	if not isinstance(mode, str) or not mode.strip():
+		raise ValueError("Database mode is required.")
+	display_name = payload.get("displayName")
+	if isinstance(display_name, str):
+		display_name = display_name.strip()
+	else:
+		display_name = None
+	sqlite_path = payload.get("sqlitePath")
+	if isinstance(sqlite_path, str):
+		sqlite_path = sqlite_path.strip()
+	else:
+		sqlite_path = None
+	connection_string = payload.get("connectionString")
+	if isinstance(connection_string, str):
+		connection_string = connection_string.strip()
+	else:
+		connection_string = None
+	return {
+		"mode": mode.strip(),
+		"display_name": display_name,
+		"sqlite_path": sqlite_path,
+		"connection_string": connection_string,
+	}
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST", "DELETE"])
+def database_connection_view(request: HttpRequest) -> JsonResponse:
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	if request.method == "GET":
+		payload = _database_connection_payload(request.user)
+		return JsonResponse(
+			{
+				"connection": payload,
+				"availableModes": list(AVAILABLE_DATABASE_MODES),
+			}
+		)
+
+	if request.method == "DELETE":
+		instance = _get_user_database_connection(request.user)
+		identifier = _connection_identifier(instance)
+		if instance:
+			instance.delete()
+		if identifier:
+			clear_sql_toolkit_cache(identifier)
+		else:
+			clear_sql_toolkit_cache()
+		default_payload = _serialise_database_connection(
+			instance=None,
+			details=get_default_connection(),
+			source="environment",
+		)
+		return JsonResponse(
+			{
+				"status": "reset",
+				"connection": default_payload,
+				"availableModes": list(AVAILABLE_DATABASE_MODES),
+			}
+		)
+
+	try:
+		payload = json.loads(request.body or "{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	try:
+		parsed = _parse_database_payload(payload)
+	except ValueError as exc:
+		return JsonResponse({"error": str(exc)}, status=400)
+
+	mode = parsed["mode"]
+	display_name = parsed["display_name"]
+	sqlite_path = parsed["sqlite_path"]
+	connection_string = parsed["connection_string"]
+	should_test = bool(payload.get("testConnection"))
+
+	try:
+		connection_details = resolve_connection_details(
+			mode or "",
+			sqlite_path=sqlite_path,
+			connection_url=connection_string,
+			display_name=display_name,
+		)
+		if should_test:
+			test_sql_connection(connection_details)
+	except ValueError as exc:
+		return JsonResponse({"error": str(exc)}, status=400)
+	except Exception as exc:
+		return JsonResponse({"error": f"Unable to connect: {exc}"}, status=400)
+
+	clean_display = display_name or ""
+	clean_sqlite_path = sqlite_path or (connection_details.sqlite_path or "")
+	clean_connection_url = (
+		connection_details.uri if connection_details.mode == DatabaseConnection.MODE_URL else ""
+	)
+
+	DatabaseConnection.objects.update_or_create(
+		user=request.user,
+		defaults={
+			"mode": connection_details.mode,
+			"sqlite_path": clean_sqlite_path,
+			"connection_url": clean_connection_url,
+			"display_name": clean_display,
+		},
+	)
+
+	clear_sql_toolkit_cache()
+
+	instance = _get_user_database_connection(request.user)
+	response_details = _resolve_user_database_details(request.user) or connection_details
+	response_payload = _serialise_database_connection(
+		instance=instance,
+		details=response_details,
+		source="user",
+	)
+
+	return JsonResponse(
+		{
+			"connection": response_payload,
+			"availableModes": list(AVAILABLE_DATABASE_MODES),
+			"tested": should_test,
+		}
 	)
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def test_database_connection_view(request: HttpRequest) -> JsonResponse:
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	try:
+		payload = json.loads(request.body or "{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	try:
+		parsed = _parse_database_payload(payload)
+		mode_value = parsed["mode"] or ""
+		connection_details = resolve_connection_details(
+			mode_value,
+			sqlite_path=parsed["sqlite_path"],
+			connection_url=parsed["connection_string"],
+			display_name=parsed["display_name"],
+		)
+		test_sql_connection(connection_details)
+	except ValueError as exc:
+		return JsonResponse({"ok": False, "message": str(exc)}, status=400)
+	except Exception as exc:
+		return JsonResponse({"ok": False, "message": f"Unable to connect: {exc}"}, status=400)
+
+	return JsonResponse(
+		{
+			"ok": True,
+			"message": "Connection successful.",
+			"resolvedSqlitePath": connection_details.sqlite_path,
+		}
+	)
+
+def _resolve_user_database_details(user: Any) -> Optional[SQLConnectionDetails]:
+	instance = _get_user_database_connection(user)
+	if instance is None:
+		return None
+	try:
+		return resolve_connection_details(
+			instance.mode,
+			sqlite_path=instance.sqlite_path or None,
+			connection_url=instance.connection_url or None,
+			display_name=instance.display_name or None,
+		)
+	except ValueError as exc:
+		print(f"Invalid database configuration for user {getattr(user, 'pk', 'unknown')}: {exc}")
+		return None
+
+
+def _serialise_database_connection(
+	*,
+	instance: Optional[DatabaseConnection],
+	details: SQLConnectionDetails,
+	source: str,
+) -> Dict[str, Any]:
+	display_name = (instance.display_name or "").strip() if instance else ""
+	if not display_name:
+		display_name = details.label
+	payload: Dict[str, Any] = {
+		"mode": details.mode,
+		"displayName": display_name,
+		"label": details.label,
+		"source": source,
+		"isDefault": source != "user",
+		"resolvedSqlitePath": details.sqlite_path,
+	}
+	if details.mode == DatabaseConnection.MODE_SQLITE:
+		payload["sqlitePath"] = instance.sqlite_path if instance else details.sqlite_path
+		payload["connectionString"] = None
+	else:
+		payload["sqlitePath"] = None
+		payload["connectionString"] = (
+			instance.connection_url if instance and instance.connection_url else None
+		)
+	return payload
+
+
+def _connection_identifier(instance: Optional[DatabaseConnection]) -> Optional[str]:
+	if instance is None:
+		return None
+	try:
+		details = resolve_connection_details(
+			instance.mode,
+			sqlite_path=instance.sqlite_path or None,
+			connection_url=instance.connection_url or None,
+			display_name=instance.display_name or None,
+		)
+		return details.identifier
+	except ValueError:
+		return None
+
+
+def _attach_documents_to_message(message: Message, documents: Iterable[UploadedDocument]) -> None:
+	docs = list(documents)
+	if not docs:
+		return
+	MessageAttachment.objects.bulk_create(
+		[
+			MessageAttachment(message=message, document=document)
+			for document in docs
+		]
+	)
+
+
+def _gather_document_context(documents: Sequence[UploadedDocument], query: str) -> Optional[str]:
+	if not documents or not query.strip():
+		return None
+
+	def _extract_document_snippets(limit: int = 3) -> List[str]:
+		snippets: List[str] = []
+		processed_documents: Set[int] = set()
+		for document in documents:
+			file_field = document.file
+			if not file_field:
+				continue
+			try:
+				loader = PyPDFLoader(file_field.path)
+				pages = loader.load()
+			except Exception as exc:  # pragma: no cover - tolerate parsing edge cases
+				print(f"Warning: unable to read PDF {document.pk} ({exc})")
+				continue
+
+			processed_documents.add(document.pk)
+			for page in pages:
+				snippet = page.page_content.strip()
+				if snippet:
+					snippets.append(snippet)
+				if len(snippets) >= limit:
+					return snippets
+		if not snippets and processed_documents:
+			doc_names = [doc.original_name for doc in documents if doc.pk in processed_documents and doc.original_name]
+			descriptor = ", ".join(dict.fromkeys(name.strip() for name in doc_names if name.strip())) or "the uploaded PDF"
+			return [
+				f"No extractable text was found in {descriptor}. It may be a scanned document. Try uploading a text-based version."
+			]
+		return snippets
+
+	try:
+		vector_store = build_pdf_search_tool()
+	except Exception as exc:  # pragma: no cover - embeddings might be unavailable locally
+		print(f"Warning: unable to load PDF vector store ({exc})")
+		fallback_snippets = _extract_document_snippets()
+		if fallback_snippets:
+			unique_names = ", ".join(
+				dict.fromkeys(document.original_name for document in documents if document.original_name)
+			)
+			header = f"Document excerpts from {unique_names}:" if unique_names else "Document excerpts:"
+			separator = "\n\n---\n\n"
+			return f"{header}\n\n" + separator.join(fallback_snippets)
+		return None
+
+	allowed_sources: Set[Path] = set()
+	for document in documents:
+		file_field = document.file
+		if not file_field:
+			continue
+		try:
+			allowed_sources.add(Path(file_field.path).resolve())
+		except Exception:
+			continue
+
+	if not allowed_sources:
+		return None
+
+	try:
+		search_results = vector_store.similarity_search(query, k=8)
+	except Exception as exc:  # pragma: no cover - tolerate search failures
+		print(f"Warning: PDF similarity search failed ({exc})")
+		fallback_snippets = _extract_document_snippets()
+		if fallback_snippets:
+			unique_names = ", ".join(
+				dict.fromkeys(document.original_name for document in documents if document.original_name)
+			)
+			header = f"Document excerpts from {unique_names}:" if unique_names else "Document excerpts:"
+			separator = "\n\n---\n\n"
+			return f"{header}\n\n" + separator.join(fallback_snippets)
+		return None
+
+	context_chunks: List[str] = []
+	for result in search_results:
+		metadata_source = result.metadata.get("source") if isinstance(result.metadata, dict) else None
+		if not metadata_source:
+			continue
+		try:
+			resolved_source = Path(metadata_source).resolve()
+		except Exception:
+			continue
+
+		if resolved_source not in allowed_sources:
+			continue
+
+		snippet = result.page_content.strip()
+		if snippet:
+			context_chunks.append(snippet)
+
+		if len(context_chunks) >= 3:
+			break
+
+	if not context_chunks:
+		fallback_snippets = _extract_document_snippets()
+		if fallback_snippets:
+			unique_names = ", ".join(
+				dict.fromkeys(document.original_name for document in documents if document.original_name)
+			)
+			header = f"Document excerpts from {unique_names}:" if unique_names else "Document excerpts:"
+			separator = "\n\n---\n\n"
+			return f"{header}\n\n" + separator.join(fallback_snippets)
+		return None
+
+	unique_names = ", ".join(dict.fromkeys(document.original_name for document in documents if document.original_name))
+	header = f"Document excerpts from {unique_names}:" if unique_names else "Document excerpts:"
+	separator = "\n\n---\n\n"
+	return f"{header}\n\n" + separator.join(context_chunks)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def chat_view(request: HttpRequest) -> JsonResponse:
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
 	try:
 		payload = json.loads(request.body or "{}")
 	except json.JSONDecodeError:
@@ -175,18 +802,54 @@ def chat_view(request: HttpRequest) -> JsonResponse:
 	document_ids = _normalise_document_ids(payload.get("document_ids"))
 
 	if conversation_id:
-		conversation = get_object_or_404(Conversation, pk=conversation_id)
+		conversation = get_object_or_404(Conversation, pk=conversation_id, user=request.user)
 	else:
-		conversation = Conversation.objects.create()
+		conversation = Conversation.objects.create(user=request.user)
 
 	previous_qs = Message.objects.filter(conversation=conversation).order_by("created_at")
 	previous_messages = [{"role": msg.role, "content": msg.content} for msg in previous_qs]
 
-	user_message = Message.objects.create(conversation=conversation, role="user", content=user_content)
-	if document_ids:
-		_attach_documents_to_message(user_message, document_ids)
+	selected_documents = (
+		list(UploadedDocument.objects.filter(pk__in=document_ids, user=request.user))
+		if document_ids
+		else []
+	)
+	context_documents: List[UploadedDocument] = list(selected_documents)
 
-	reply = generate_response(user_content, previous_messages)
+	if not context_documents:
+		attached_document_ids = (
+			MessageAttachment.objects.filter(message__conversation=conversation)
+			.values_list("document_id", flat=True)
+			.distinct()
+		)
+		if attached_document_ids:
+			context_documents = list(
+				UploadedDocument.objects.filter(pk__in=attached_document_ids, user=request.user)
+			)
+
+	user_message = Message.objects.create(conversation=conversation, role="user", content=user_content)
+	if selected_documents:
+		_attach_documents_to_message(user_message, selected_documents)
+
+	document_context = _gather_document_context(context_documents, user_content)
+
+	external_context: Optional[str] = None
+	if (not document_context) and _should_query_tavily(user_content):
+		try:
+			searcher = get_tavily_search_tool()
+			results = searcher.run(user_content)
+			external_context = _format_tavily_results(results)
+		except Exception as exc:  # pragma: no cover - avoid hard failures when Tavily unavailable
+			print(f"Warning: Tavily search failed ({exc})")
+
+	connection_details = _resolve_user_database_details(request.user)
+	with use_sql_connection(connection_details):
+		reply = generate_response(
+			user_content,
+			previous_messages,
+			document_context=document_context,
+			external_context=external_context,
+		)
 
 	Message.objects.create(conversation=conversation, role="assistant", content=reply)
 
@@ -201,22 +864,42 @@ def chat_view(request: HttpRequest) -> JsonResponse:
 
 @require_http_methods(["GET"])
 def conversations_view(request: HttpRequest) -> JsonResponse:
-	conversations = Conversation.objects.all()
-	data = [_serialise_conversation(conversation) for conversation in conversations]
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	conversations = Conversation.objects.filter(user=request.user).order_by("-updated_at")
+	data = [
+		_serialise_conversation(conversation)
+		for conversation in conversations
+	]
 	return JsonResponse({"conversations": data})
 
-
-@require_http_methods(["GET"])
+@csrf_exempt
+@require_http_methods(["GET", "DELETE"])
 def conversation_detail_view(request: HttpRequest, conversation_id: int) -> JsonResponse:
-	conversation = get_object_or_404(Conversation, pk=conversation_id)
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	conversation = get_object_or_404(Conversation, pk=conversation_id, user=request.user)
+
+	if request.method == "DELETE":
+		conversation.delete()
+		return JsonResponse({"status": "deleted"})
+
 	return JsonResponse(_serialise_conversation(conversation, include_messages=True, request=request))
 
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def documents_view(request: HttpRequest) -> JsonResponse:
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
 	if request.method == "GET":
-		documents = UploadedDocument.objects.all()
+		documents = UploadedDocument.objects.filter(user=request.user).order_by("-created_at")
 		data = [_serialise_document(document, request) for document in documents]
 		return JsonResponse({"documents": data})
 
@@ -228,6 +911,7 @@ def documents_view(request: HttpRequest) -> JsonResponse:
 		return JsonResponse({"error": "Only PDF files are supported."}, status=400)
 
 	document = UploadedDocument.objects.create(
+		user=request.user,
 		file=uploaded_file,
 		original_name=uploaded_file.name,
 		size=getattr(uploaded_file, "size", 0) or 0,
@@ -244,7 +928,11 @@ def documents_view(request: HttpRequest) -> JsonResponse:
 @csrf_exempt
 @require_http_methods(["DELETE"])
 def document_detail_view(request: HttpRequest, document_id: int) -> JsonResponse:
-	document = get_object_or_404(UploadedDocument, pk=document_id)
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	document = get_object_or_404(UploadedDocument, pk=document_id, user=request.user)
 	links_manager = getattr(document, "message_links", None)
 	if links_manager is not None:
 		links_manager.all().delete()

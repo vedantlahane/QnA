@@ -29,23 +29,107 @@ export interface RawConversationDetail extends RawConversationSummary {
   messages: RawMessage[];
 }
 
+export interface UserProfile {
+  id: number;
+  email: string;
+  name: string;
+}
+
+export interface PasswordResetRequestResult {
+  message: string;
+  resetToken?: string | null;
+}
+
+export type DatabaseMode = 'sqlite' | 'url';
+
+export interface DatabaseConnectionSettings {
+  mode: DatabaseMode;
+  displayName: string;
+  label: string;
+  sqlitePath?: string | null;
+  resolvedSqlitePath?: string | null;
+  connectionString?: string | null;
+  isDefault: boolean;
+  source: 'user' | 'environment';
+}
+
+export interface DatabaseConnectionEnvelope {
+  connection: DatabaseConnectionSettings;
+  availableModes: DatabaseMode[];
+  tested?: boolean;
+}
+
+export interface UpdateDatabaseConnectionPayload {
+  mode: DatabaseMode;
+  displayName?: string;
+  sqlitePath?: string;
+  connectionString?: string;
+  testConnection?: boolean;
+}
+
+export interface DatabaseConnectionTestResult {
+  ok: boolean;
+  message: string;
+  resolvedSqlitePath?: string | null;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Request failed with status ${response.status}`);
+    let errorMessage = `Request failed with status ${response.status}`;
+    const cloned = response.clone();
+
+    try {
+      const data = (await cloned.json()) as Record<string, unknown>;
+      const extractedError = [data?.error, data?.detail]
+        .find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      if (extractedError) {
+        errorMessage = extractedError;
+      } else if (Object.keys(data ?? {}).length > 0) {
+        errorMessage = JSON.stringify(data);
+      }
+    } catch {
+      const text = await response.text();
+      if (text) {
+        errorMessage = text;
+      }
+    }
+
+    throw new Error(errorMessage);
   }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 }
 
 export async function fetchConversations(): Promise<RawConversationSummary[]> {
-  const response = await fetch(`${API_BASE_URL}/conversations/`);
+  const response = await fetch(`${API_BASE_URL}/conversations/`, {
+    credentials: 'include',
+  });
   const data = await handleResponse<{ conversations: RawConversationSummary[] }>(response);
   return data.conversations ?? [];
 }
 
 export async function fetchConversation(conversationId: string): Promise<RawConversationDetail> {
-  const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/`);
+  const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/`, {
+    credentials: 'include',
+  });
   return handleResponse<RawConversationDetail>(response);
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to delete conversation ${conversationId}`);
+  }
 }
 
 export interface SendChatPayload {
@@ -77,6 +161,7 @@ export async function sendChatMessage(payload: SendChatPayload): Promise<RawConv
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(body),
   });
 
@@ -91,6 +176,7 @@ export async function uploadDocument(file: File): Promise<UploadedDocument> {
 
   const response = await fetch(`${API_BASE_URL}/documents/`, {
     method: 'POST',
+    credentials: 'include',
     body: formData,
   });
 
@@ -100,10 +186,144 @@ export async function uploadDocument(file: File): Promise<UploadedDocument> {
 export async function deleteDocument(documentId: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/documents/${documentId}/`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Failed to delete document ${documentId}`);
   }
+}
+
+export interface SignInPayload {
+  email: string;
+  password: string;
+}
+
+export interface SignUpPayload extends SignInPayload {
+  name: string;
+}
+
+export async function signUp(payload: SignUpPayload): Promise<UserProfile> {
+  const response = await fetch(`${API_BASE_URL}/auth/register/`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await handleResponse<{ user: UserProfile }>(response);
+  return data.user;
+}
+
+export async function signIn(payload: SignInPayload): Promise<UserProfile> {
+  const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await handleResponse<{ user: UserProfile }>(response);
+  return data.user;
+}
+
+export async function signOut(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/logout/`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || 'Failed to sign out.');
+  }
+}
+
+export async function getCurrentUser(): Promise<UserProfile | null> {
+  const response = await fetch(`${API_BASE_URL}/auth/me/`, {
+    credentials: 'include',
+  });
+
+  const data = await handleResponse<{ user: UserProfile | null }>(response);
+  return data.user ?? null;
+}
+
+export async function requestPasswordReset(email: string): Promise<PasswordResetRequestResult> {
+  const response = await fetch(`${API_BASE_URL}/auth/password/reset/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ email }),
+  });
+
+  return handleResponse<PasswordResetRequestResult>(response);
+}
+
+export interface ConfirmPasswordResetPayload {
+  token: string;
+  password: string;
+}
+
+export async function confirmPasswordReset(payload: ConfirmPasswordResetPayload): Promise<UserProfile> {
+  const response = await fetch(`${API_BASE_URL}/auth/password/reset/confirm/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  const data = await handleResponse<{ user: UserProfile }>(response);
+  return data.user;
+}
+
+export async function fetchDatabaseConnectionSettings(): Promise<DatabaseConnectionEnvelope> {
+  const response = await fetch(`${API_BASE_URL}/database/connection/`, {
+    credentials: 'include',
+  });
+
+  return handleResponse<DatabaseConnectionEnvelope>(response);
+}
+
+export async function updateDatabaseConnectionSettings(payload: UpdateDatabaseConnectionPayload): Promise<DatabaseConnectionEnvelope> {
+  const response = await fetch(`${API_BASE_URL}/database/connection/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  return handleResponse<DatabaseConnectionEnvelope>(response);
+}
+
+export async function clearDatabaseConnectionSettings(): Promise<DatabaseConnectionEnvelope> {
+  const response = await fetch(`${API_BASE_URL}/database/connection/`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  return handleResponse<DatabaseConnectionEnvelope>(response);
+}
+
+export async function testDatabaseConnectionSettings(payload: UpdateDatabaseConnectionPayload): Promise<DatabaseConnectionTestResult> {
+  const response = await fetch(`${API_BASE_URL}/database/connection/test/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  return handleResponse<DatabaseConnectionTestResult>(response);
 }

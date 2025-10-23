@@ -15,6 +15,10 @@ interface InputSectionProps {
   onSend: (message: string, options?: { documentIds?: string[] }) => Promise<void> | void;
   isHistoryActive: boolean;
   isSending?: boolean;
+  isAuthenticated: boolean;
+  onRequireAuth: (mode: 'signin' | 'signup') => void;
+  onOpenDatabaseSettings: () => void;
+  databaseSummary: string;
 }
 
 const formatFileSize = (size: number) => {
@@ -23,7 +27,15 @@ const formatFileSize = (size: number) => {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, isSending = false }) => {
+const InputSection: React.FC<InputSectionProps> = ({
+  onSend,
+  isHistoryActive,
+  isSending = false,
+  isAuthenticated,
+  onRequireAuth,
+  onOpenDatabaseSettings,
+  databaseSummary,
+}) => {
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<FileTile[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -133,12 +145,20 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
     if (!trimmed) return;
     if (isSending) return;
     if (files.some((tile) => tile.status === 'uploading')) return;
+    if (!isAuthenticated) {
+      onRequireAuth('signin');
+      return;
+    }
 
     const currentFiles = [...files];
+    setMessage('');
     try {
       await onSend(trimmed, { documentIds: uploadedFileIds });
+    } catch (error) {
+      console.error('Failed to send message', error);
+      setMessage(trimmed);
+      return;
     } finally {
-      setMessage('');
       currentFiles.forEach((tile) => revokePreview(tile.id));
       setFiles([]);
     }
@@ -146,7 +166,19 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
-    if (!selectedFiles.length) return;
+    if (!selectedFiles.length) {
+      event.target.value = '';
+      if (!isAuthenticated) {
+        onRequireAuth('signup');
+      }
+      return;
+    }
+
+    if (!isAuthenticated) {
+      event.target.value = '';
+      onRequireAuth('signup');
+      return;
+    }
 
     selectedFiles.forEach((file, index) => {
       const id = `${file.name}-${Date.now()}-${index}`;
@@ -209,7 +241,7 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
   };
 
   const handleVoiceCapture = () => {
-    if (!isSpeechSupported || isHistoryActive || isSending) {
+    if (!isSpeechSupported || isHistoryActive || isSending || !isAuthenticated) {
       return;
     }
 
@@ -231,13 +263,28 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
 
   const handleUploadTrigger = () => {
     if (isHistoryActive) return;
+    if (!isAuthenticated) {
+      onRequireAuth('signup');
+      return;
+    }
     fileInputRef.current?.click();
+  };
+
+  const handleDatabaseConfig = () => {
+    if (isHistoryActive) return;
+    if (!isAuthenticated) {
+      onRequireAuth('signin');
+      return;
+    }
+    onOpenDatabaseSettings();
   };
 
   const hasUploadingFiles = files.some((tile) => tile.status === 'uploading');
   const canSend = message.trim().length > 0;
-  const voiceButtonDisabled = isHistoryActive || isSending || !isSpeechSupported;
-  const isSendDisabled = isHistoryActive || isSending || hasUploadingFiles || !canSend;
+  const voiceButtonDisabled = isHistoryActive || isSending || !isSpeechSupported || !isAuthenticated;
+  const isSendDisabled =
+    isHistoryActive || isSending || hasUploadingFiles || !canSend || !isAuthenticated;
+  const databaseButtonDisabled = isHistoryActive || isSending;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -405,12 +452,42 @@ const InputSection: React.FC<InputSectionProps> = ({ onSend, isHistoryActive, is
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder={
-              isHistoryActive ? 'Switch back to Chat to send a message' : 'Ask AXON ....'
+              isHistoryActive
+                ? 'Switch back to Chat to send a message'
+                : isAuthenticated
+                  ? 'Ask AXON ....'
+                  : 'Sign in to start chatting'
             }
             className="flex-1 bg-transparent py-2 text-sm text-white placeholder:text-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             onKeyDown={handleKeyDown}
-            disabled={isHistoryActive}
+            disabled={isHistoryActive || !isAuthenticated}
           />
+
+          <motion.button
+            type="button"
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 transition hover:border-white/20 hover:text-white"
+            aria-label="Configure database connection"
+            whileHover={databaseButtonDisabled ? {} : { scale: 1.03 }}
+            whileTap={databaseButtonDisabled ? {} : { scale: 0.97 }}
+            onClick={handleDatabaseConfig}
+            disabled={databaseButtonDisabled}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <ellipse cx="12" cy="5" rx="8" ry="3" />
+              <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+              <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+            </svg>
+            <span className="max-w-[120px] truncate">{databaseSummary}</span>
+          </motion.button>
 
           <motion.button
             type="button"

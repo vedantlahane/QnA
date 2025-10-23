@@ -1,72 +1,175 @@
 import os
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
+
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
-from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
+from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_core.tools import tool
+from sqlalchemy import create_engine, text
 
 load_dotenv()
+
+@dataclass(frozen=True)
+class SQLConnectionDetails:
+    mode: str
+    identifier: str
+    uri: str
+    label: str
+    sqlite_path: Optional[str] = None
+
+
+AVAILABLE_DATABASE_MODES = ("sqlite", "url")
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_SQLITE_NAME = os.getenv("SQLITE_DB_NAME", "db.sqlite3")
+_CURRENT_CONNECTION: ContextVar[Optional[SQLConnectionDetails]] = ContextVar(
+    "current_sql_connection", default=None
+)
+_TOOLKIT_CACHE: Dict[str, SQLDatabaseToolkit] = {}
+
 
 def _require_openai_api_key() -> None:
     if not os.getenv("OPENAI_API_KEY"):
         raise EnvironmentError("OPENAI_API_KEY environment variable is not set")
 
-def build_sql_tool(
-    sqlite_db_path: Optional[str | Path] = None,
-    model_name: str = "openai:gpt-4o",
-    temperature: float = 0,
-) -> SQLDatabaseToolkit:
+
+def _normalise_sqlite_path(raw_path: Optional[str]) -> Path:
+    candidate = (raw_path or "").strip() or _DEFAULT_SQLITE_NAME
+    path = Path(candidate)
+    if not path.is_absolute():
+        path = _BACKEND_ROOT / path
+    return path.resolve()
+
+
+def _default_connection() -> SQLConnectionDetails:
+    database_url = (os.getenv("DATABASE_URL") or "").strip()
+    if database_url:
+        label = os.getenv("DATABASE_LABEL", "DATABASE_URL")
+        return SQLConnectionDetails(
+            mode="url",
+            identifier=database_url,
+            uri=database_url,
+            label=label,
+            sqlite_path=None,
+        )
+
+    sqlite_env_path = os.getenv("SQLITE_DB_PATH")
+    sqlite_path = _normalise_sqlite_path(sqlite_env_path)
+    label = f"SQLite ({sqlite_path.name})"
+    return SQLConnectionDetails(
+        mode="sqlite",
+        identifier=str(sqlite_path),
+        uri=f"sqlite:///{sqlite_path}",
+        label=label,
+        sqlite_path=str(sqlite_path),
+    )
+
+
+def get_default_connection() -> SQLConnectionDetails:
+    return _default_connection()
+
+
+def resolve_connection_details(
+    mode: str,
+    *,
+    sqlite_path: Optional[str] = None,
+    connection_url: Optional[str] = None,
+    display_name: Optional[str] = None,
+) -> SQLConnectionDetails:
+    cleaned_mode = (mode or "").strip().lower()
+    if cleaned_mode in {"sqlite", "local", "file"}:
+        resolved_path = _normalise_sqlite_path(sqlite_path)
+        label = (display_name or "").strip() or f"SQLite ({resolved_path.name})"
+        return SQLConnectionDetails(
+            mode="sqlite",
+            identifier=str(resolved_path),
+            uri=f"sqlite:///{resolved_path}",
+            label=label,
+            sqlite_path=str(resolved_path),
+        )
+
+    if cleaned_mode in {"url", "remote", "external"}:
+        if not isinstance(connection_url, str) or not connection_url.strip():
+            raise ValueError("A connection string is required for remote databases.")
+        uri = connection_url.strip()
+        label = (display_name or "").strip() or "Remote SQL database"
+        return SQLConnectionDetails(
+            mode="url",
+            identifier=uri,
+            uri=uri,
+            label=label,
+            sqlite_path=None,
+        )
+
+    raise ValueError("Unsupported database mode. Use 'sqlite' or 'url'.")
+
+
+@contextmanager
+def use_sql_connection(connection: Optional[SQLConnectionDetails]):
+    token = _CURRENT_CONNECTION.set(connection)
+    try:
+        yield
+    finally:
+        _CURRENT_CONNECTION.reset(token)
+
+
+def clear_sql_toolkit_cache(identifier: Optional[str] = None) -> None:
+    if identifier is None:
+        _TOOLKIT_CACHE.clear()
+    else:
+        _TOOLKIT_CACHE.pop(identifier, None)
+
+
+def build_sql_tool(connection: Optional[SQLConnectionDetails] = None) -> SQLDatabaseToolkit:
     _require_openai_api_key()
+    target = connection or _CURRENT_CONNECTION.get() or _default_connection()
+    llm = init_chat_model("openai:gpt-4o", temperature=0)
+    db = SQLDatabase.from_uri(target.uri)
+    return SQLDatabaseToolkit(db=db, llm=llm)
 
-    backend_dir = Path(__file__).resolve().parents[2]
-    db_path = Path(sqlite_db_path) if sqlite_db_path else backend_dir / "db.sqlite3"
 
-    llm = init_chat_model(model_name, temperature=temperature)
-    db = SQLDatabase.from_uri(f"sqlite:///{db_path}")
-    toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+def get_sql_toolkit(force_rebuild: bool = False) -> Optional[SQLDatabaseToolkit]:
+    connection = _CURRENT_CONNECTION.get()
+    target = connection or _default_connection()
+    cache_key = target.identifier
 
-    system_prompt = """
-You are an agent designed to interact with a SQL database.
-Given an input question, create a syntactically correct {dialect} query to run,
-then look at the results of the query and return the answer. Unless the user
-specifies a specific number of examples they wish to obtain, always limit your
-query to at most {top_k} results.
+    if force_rebuild:
+        _TOOLKIT_CACHE.pop(cache_key, None)
 
-You can order the results by a relevant column to return the most interesting
-examples in the database. Never query for all the columns from a specific table,
-only ask for the relevant columns given the question.
+    toolkit = _TOOLKIT_CACHE.get(cache_key)
+    if toolkit is not None:
+        return toolkit
 
-You MUST double check your query before executing it. If you get an error while
-executing a query, rewrite the query and try again.
+    try:
+        toolkit = build_sql_tool(target)
+    except EnvironmentError as exc:
+        print(f"SQL tool unavailable: {exc}")
+        return None
+    except Exception as exc:
+        print(f"Failed to initialise SQL toolkit: {exc}")
+        return None
 
-DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the
-database.
-
-To start you should ALWAYS look at the tables in the database to see what you
-can query. Do NOT skip this step.
-
-Then you should query the schema of the most relevant tables.
-""".format(
-    dialect=db.dialect,
-    top_k=5,
-)
-
+    _TOOLKIT_CACHE[cache_key] = toolkit
     return toolkit
 
-# Build toolkit instance globally or per usage
-_sql_toolkit: Optional[SQLDatabaseToolkit] = None
 
-def get_sql_toolkit() -> Optional[SQLDatabaseToolkit]:
-    global _sql_toolkit
-    if _sql_toolkit is None:
-        try:
-            _sql_toolkit = build_sql_tool()
-        except EnvironmentError as exc:
-            print(f"SQL tool unavailable: {exc}")
-            _sql_toolkit = None
-    return _sql_toolkit
+def test_sql_connection(connection: SQLConnectionDetails) -> None:
+    engine = None
+    try:
+        engine = create_engine(connection.uri)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    finally:
+        if engine is not None:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
+
 
 @tool
 def run_sql_query(query: str) -> str:
@@ -80,4 +183,7 @@ def run_sql_query(query: str) -> str:
         return "SQL assistant is ready but no query tool is available."
 
     query_tool = tools[0]
-    return query_tool.run(query)
+    try:
+        return query_tool.run(query)
+    except Exception as exc:
+        return f"SQL query failed: {exc}"

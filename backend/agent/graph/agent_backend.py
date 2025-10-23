@@ -18,6 +18,16 @@ if api_key:
 class State(TypedDict):
     messages: Annotated[List[Dict[str, Any]], add_messages]
 
+
+SYSTEM_PROMPT = (
+    "You are Axon Copilot, an assistant that combines retrieved document knowledge with live tools. "
+    "Always use the available tools when they can improve your answer. "
+    "Call `tavily_search` for questions about current events, weather, general facts, or anything that "
+    "requires up-to-date or external information. Only answer from prior knowledge when tools are "
+    "clearly unnecessary."
+)
+
+
 def route_tools(state: State) -> str:
     """
     Conditional routing function that decides whether to route to the tools node
@@ -26,9 +36,17 @@ def route_tools(state: State) -> str:
     last_message = state["messages"][-1]
     # Handle both dict and BaseMessage objects
     if isinstance(last_message, BaseMessage):
+        tool_calls = getattr(last_message, "tool_calls", None)
+        if not tool_calls:
+            tool_calls = last_message.additional_kwargs.get("tool_calls") if hasattr(last_message, "additional_kwargs") else None
+        if tool_calls:
+            return "tools"
         content = last_message.content
     else:
         content = last_message.get("content", "")
+        tool_calls = last_message.get("tool_calls") if isinstance(last_message, dict) else None
+        if tool_calls:
+            return "tools"
     # You can implement your own logic to detect if a tool call is needed
     if "TOOL_CALL" in content:  # example marker indicating tool usage
         return "tools"
@@ -85,7 +103,13 @@ def get_graph():
 
 _FALLBACK_MESSAGE = "Sorry, I could not generate a response right now."
 
-def generate_response(prompt: str, history: Optional[Sequence[Dict[str, Any]]] = None) -> str:
+def generate_response(
+    prompt: str,
+    history: Optional[Sequence[Dict[str, Any]]] = None,
+    *,
+    document_context: Optional[str] = None,
+    external_context: Optional[str] = None,
+) -> str:
     """Return the assistant reply for the provided prompt and history."""
     if not prompt:
         return _FALLBACK_MESSAGE
@@ -98,13 +122,53 @@ def generate_response(prompt: str, history: Optional[Sequence[Dict[str, Any]]] =
             if isinstance(role, str) and isinstance(content, str):
                 prior_messages.append({"role": role, "content": content})
 
-    conversation = [*prior_messages, {"role": "user", "content": prompt}]
+    conversation = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *prior_messages,
+    ]
+
+    if document_context:
+        conversation.append(
+            {
+                "role": "system",
+                "content": (
+                    "Use the following excerpts from the user's uploaded documents as trusted context when you answer.\n\n"
+                    f"{document_context}"
+                ),
+            }
+        )
+
+    if external_context:
+        conversation.append(
+            {
+                "role": "system",
+                "content": (
+                    "The following information was retrieved from the web. Incorporate it into your answer when relevant.\n\n"
+                    f"{external_context}"
+                ),
+            }
+        )
+
+    conversation.append({"role": "user", "content": prompt})
 
     try:
         graph = get_graph()
         result = graph.invoke({"messages": conversation})
     except Exception as exc:
         print(f"Assistant backend error: {exc}")
+        fallback_chunks: List[str] = []
+        if document_context:
+            fallback_chunks.append(
+                "I could not reach the language model, but here are excerpts from your uploaded documents:\n\n"
+                f"{document_context}"
+            )
+        if external_context:
+            fallback_chunks.append(
+                "I could not reach the language model, but here are insights from a recent web search:\n\n"
+                f"{external_context}"
+            )
+        if fallback_chunks:
+            return "\n\n---\n\n".join(fallback_chunks)
         return _FALLBACK_MESSAGE
 
     messages = result.get("messages") if isinstance(result, dict) else None
@@ -121,7 +185,25 @@ def generate_response(prompt: str, history: Optional[Sequence[Dict[str, Any]]] =
     content_value = last_message.get("content") if isinstance(last_message, dict) else None
     if isinstance(content_value, str):
         return content_value or _FALLBACK_MESSAGE
-    return str(content_value) if content_value else _FALLBACK_MESSAGE
+    if content_value:
+        return str(content_value)
+
+    fallback_chunks: List[str] = []
+    if document_context:
+        fallback_chunks.append(
+            "Here are excerpts from your uploaded documents:\n\n"
+            f"{document_context}"
+        )
+    if external_context:
+        fallback_chunks.append(
+            "Here are insights from a recent web search:\n\n"
+            f"{external_context}"
+        )
+
+    if fallback_chunks:
+        return "\n\n---\n\n".join(fallback_chunks)
+
+    return _FALLBACK_MESSAGE
 
 def stream_graph_updates(messages: List[Dict[str, Any]]):
     graph = get_graph()

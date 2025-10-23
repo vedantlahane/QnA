@@ -10,7 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from typing import Any, Dict, cast
+
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -75,12 +79,35 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+SQLITE_DB_NAME = os.getenv('SQLITE_DB_NAME', 'db.sqlite3')
+SQLITE_DB_PATH = os.getenv('SQLITE_DB_PATH')
+
+default_sqlite_name: Path
+if SQLITE_DB_PATH:
+    sqlite_path = Path(SQLITE_DB_PATH)
+    default_sqlite_name = sqlite_path if sqlite_path.is_absolute() else BASE_DIR / sqlite_path
+else:
+    default_sqlite_name = BASE_DIR / SQLITE_DB_NAME
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': default_sqlite_name,
     }
 }
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    conn_max_age = int(os.getenv('DATABASE_CONN_MAX_AGE', '600'))
+    ssl_required = os.getenv('DATABASE_SSL_REQUIRE', 'false').lower() in {'1', 'true', 'yes'}
+    DATABASES['default'] = cast(
+        Dict[str, Any],
+        dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=conn_max_age,
+            ssl_require=ssl_required,
+        ),
+    )
 
 
 # Password validation
@@ -130,6 +157,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
 ]
+
+CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
