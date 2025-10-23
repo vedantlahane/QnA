@@ -29,8 +29,38 @@ def tavily_search(query: str) -> str:
     except EnvironmentError as exc:
         return f"Tavily search is unavailable: {exc}"
 
-    results = searcher.run(query)
-    if not results:
-        return "No results found."
-    # Format results as needed; here joining texts
-    return "\n\n".join(result.summary for result in results)
+    raw = searcher.run(query)
+    if raw is None:
+        return "No Tavily results were returned."
+
+    if isinstance(raw, dict):
+        results = raw.get("results") or []
+        if not results:
+            answer = raw.get("answer")
+            if isinstance(answer, str) and answer.strip():
+                return answer.strip()
+            return "No results found."
+    else:
+        results = raw
+
+    formatted_chunks = []
+    for item in results:
+        if hasattr(item, "summary") and isinstance(item.summary, str) and item.summary.strip():
+            formatted_chunks.append(item.summary.strip())
+            continue
+        if isinstance(item, dict):
+            parts = []
+            for key in ("title", "url", "content", "summary", "snippet"):
+                value = item.get(key)
+                if isinstance(value, str) and value.strip():
+                    parts.append(value.strip())
+            if parts:
+                formatted_chunks.append(" — ".join(parts))
+            continue
+        if isinstance(item, str) and item.strip():
+            formatted_chunks.append(item.strip())
+
+    if not formatted_chunks:
+        return "No useful Tavily results were returned."
+
+    return "\n\n".join(formatted_chunks)
