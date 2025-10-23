@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TypedDict, Annotated, List, Dict, Any, Optional, Sequence
 from dotenv import load_dotenv
 from langgraph.graph import add_messages, StateGraph, END, START
+from langgraph.prebuilt import ToolNode
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage
 from .pdf_tool import search_pdf          # decorated tool function
@@ -61,6 +62,7 @@ def build_graph():
 
     # Bind tools to LLM to create an agent
     llm_with_tools = llm.bind_tools(tools)
+    tool_node = ToolNode(tools)
 
     # Define chatbot node: takes state, calls llm_with_tools, returns message
     def chatbot(state: State):
@@ -71,7 +73,7 @@ def build_graph():
     graph.add_node("chatbot", chatbot)
 
     # Tool execution node
-    graph.add_node("tools", llm_with_tools)
+    graph.add_node("tools", tool_node)
 
     # Conditional routing based on chatbot output
     graph.add_conditional_edges(

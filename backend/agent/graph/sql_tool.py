@@ -40,10 +40,16 @@ def _normalise_sqlite_path(raw_path: Optional[str]) -> Path:
     candidate = (raw_path or "").strip()
     if not candidate:
         raise ValueError("A SQLite database path is required.")
-    path = Path(candidate)
+    path = Path(candidate).expanduser()
     if not path.is_absolute():
-        path = _BACKEND_ROOT / path
-    return path.resolve()
+        path = (_BACKEND_ROOT / path).resolve()
+    try:
+        resolved = path.resolve(strict=True)
+    except FileNotFoundError:
+        raise ValueError(f"SQLite database file not found: {path}")
+    if not resolved.is_file():
+        raise ValueError(f"SQLite database path must point to a file: {resolved}")
+    return resolved
 
 
 def get_environment_connection() -> Optional[SQLConnectionDetails]:
