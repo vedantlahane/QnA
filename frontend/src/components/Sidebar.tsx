@@ -239,48 +239,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           </span>
           {!collapsed && <span>New chat</span>}
         </motion.button>
-        {isAuthenticated ? (
-          <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white/70">
-            <div className="text-xs uppercase tracking-[0.25em] text-white/40">Account</div>
-            <div className="text-sm font-medium text-white">{currentUser?.name ?? currentUser?.email}</div>
-            <div className="text-xs text-white/50">{currentUser?.email}</div>
-            <motion.button
-              type="button"
-              className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/10 hover:text-rose-200"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                void onSignOut();
-              }}
-            >
-              Sign out
-            </motion.button>
-          </div>
-        ) : (
-          <motion.button
-            type="button"
-            className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onRequireAuth('signin')}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
-            </svg>
-            {!collapsed && <span>Sign in</span>}
-          </motion.button>
-        )}
         <motion.button
           type="button"
           className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
