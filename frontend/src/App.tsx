@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MainPanel from './components/MainPanel';
 import AuthModal from './components/AuthModal';
 import DatabaseConnectionModal from './components/DatabaseConnectionModal';
+import { type SqlSideWindowProps, type SqlQueryHistoryEntry } from './components/SqlSideWindow';
 import {
   fetchConversation,
   fetchConversations,
@@ -23,9 +24,15 @@ import {
   updateDatabaseConnectionSettings,
   clearDatabaseConnectionSettings,
   testDatabaseConnectionSettings,
+  runSqlQuery,
+  fetchDatabaseSchema,
+  requestSqlSuggestions,
   type DatabaseConnectionSettings,
   type UpdateDatabaseConnectionPayload,
   type DatabaseMode,
+  type SqlQueryResult,
+  type SqlSchemaPayload,
+  type SqlQuerySuggestion,
 } from './services/chatApi';
 
 export type ChatSender = 'user' | 'assistant';
@@ -98,12 +105,137 @@ const App: React.FC = () => {
   const [isDatabaseLoading, setIsDatabaseLoading] = useState(false);
   const [isDatabaseBusy, setIsDatabaseBusy] = useState(false);
   const [databaseFeedback, setDatabaseFeedback] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
+  const [isSideWindowOpen, setIsSideWindowOpen] = useState(false);
+  const [sqlEditorValue, setSqlEditorValue] = useState<string>('');
+  const [sqlSchema, setSqlSchema] = useState<SqlSchemaPayload | null>(null);
+  const [isSchemaLoading, setIsSchemaLoading] = useState(false);
+  const [isExecutingSql, setIsExecutingSql] = useState(false);
+  const [sqlConsoleError, setSqlConsoleError] = useState<string | null>(null);
+  const [sqlHistory, setSqlHistory] = useState<SqlQueryHistoryEntry[]>([]);
+  const [sqlSuggestions, setSqlSuggestions] = useState<SqlQuerySuggestion[]>([]);
+  const [sqlSuggestionAnalysis, setSqlSuggestionAnalysis] = useState<string | null>(null);
+  const [isFetchingSqlSuggestions, setIsFetchingSqlSuggestions] = useState(false);
+  const [sqlSuggestionsError, setSqlSuggestionsError] = useState<string | null>(null);
+
+  const lastAssistantMessageIdRef = useRef<string | null>(null);
 
   const deriveErrorMessage = (error: unknown, fallback: string): string => {
     if (error instanceof Error && error.message) {
       return error.message;
     }
     return fallback;
+  };
+
+  const activeConnection = databaseSettings ?? environmentFallback;
+  const canUseDatabaseTools = Boolean(activeConnection);
+
+  const resetSqlConsoleState = (options?: { close?: boolean }) => {
+    setSqlEditorValue('');
+    setSqlSchema(null);
+    setSqlConsoleError(null);
+    setSqlHistory([]);
+    setIsSchemaLoading(false);
+    setIsExecutingSql(false);
+    setSqlSuggestions([]);
+    setSqlSuggestionAnalysis(null);
+    setSqlSuggestionsError(null);
+    setIsFetchingSqlSuggestions(false);
+    if (options?.close) {
+      setIsSideWindowOpen(false);
+    }
+  };
+
+  const handleRefreshDatabaseSchema = async () => {
+    if (!canUseDatabaseTools) {
+      setSqlSchema(null);
+      setSqlConsoleError('Configure a database connection to inspect the schema.');
+      return;
+    }
+
+    setIsSchemaLoading(true);
+    setSqlConsoleError(null);
+
+    try {
+      const schemaPayload = await fetchDatabaseSchema();
+      setSqlSchema(schemaPayload);
+    } catch (error) {
+      setSqlConsoleError(deriveErrorMessage(error, 'Unable to load database schema.'));
+    } finally {
+      setIsSchemaLoading(false);
+    }
+  };
+
+  const handleExecuteSqlQuery = async (query: string, limit = 200): Promise<SqlQueryResult> => {
+    if (!canUseDatabaseTools) {
+      const error = new Error('Configure a database connection before running SQL queries.');
+      setSqlConsoleError(error.message);
+      throw error;
+    }
+
+  setIsSideWindowOpen(true);
+    setSqlEditorValue(query);
+    setIsExecutingSql(true);
+    setSqlConsoleError(null);
+
+    try {
+      const result = await runSqlQuery({ query, limit });
+
+      const historyEntry: SqlQueryHistoryEntry = {
+        id: `sql-${Date.now()}`,
+        query,
+        executedAt: new Date().toISOString(),
+        type: result.type,
+        rowCount: result.rowCount,
+      };
+
+      setSqlHistory((prev) => [historyEntry, ...prev].slice(0, 25));
+      return result;
+    } catch (error) {
+      const message = deriveErrorMessage(error, 'Unable to execute SQL query.');
+      setSqlConsoleError(message);
+      throw new Error(message);
+    } finally {
+      setIsExecutingSql(false);
+    }
+  };
+
+  const handleRequestSqlSuggestions = async (
+    query: string,
+    options?: { includeSchema?: boolean; maxSuggestions?: number },
+  ): Promise<void> => {
+    if (!canUseDatabaseTools) {
+      const error = new Error('Configure a database connection before requesting suggestions.');
+      setSqlSuggestionsError(error.message);
+      throw error;
+    }
+
+    const trimmed = query.trim();
+    if (!trimmed) {
+      const error = new Error('Provide a SQL query to analyse.');
+      setSqlSuggestionsError(error.message);
+      throw error;
+    }
+
+  setIsSideWindowOpen(true);
+    setSqlEditorValue(trimmed);
+    setIsFetchingSqlSuggestions(true);
+    setSqlSuggestionsError(null);
+
+    try {
+      const response = await requestSqlSuggestions({
+        query: trimmed,
+        includeSchema: options?.includeSchema ?? true,
+        maxSuggestions: options?.maxSuggestions,
+      });
+      setSqlSuggestions(response.suggestions ?? []);
+      setSqlSuggestionAnalysis(response.analysis ?? null);
+    } catch (error) {
+      const message = deriveErrorMessage(error, 'Unable to generate SQL suggestions.');
+      setSqlSuggestionsError(message);
+      throw new Error(message);
+    } finally {
+      setIsFetchingSqlSuggestions(false);
+    }
   };
 
   const refreshConversations = useCallback(async () => {
@@ -136,6 +268,32 @@ const App: React.FC = () => {
 
     void refreshConversations();
   }, [currentUser, refreshConversations]);
+
+  useEffect(() => {
+    if (currentMessages.length === 0) {
+      lastAssistantMessageIdRef.current = null;
+      return;
+    }
+
+    const latest = currentMessages[currentMessages.length - 1];
+    if (!latest || latest.id === lastAssistantMessageIdRef.current) {
+      return;
+    }
+
+    lastAssistantMessageIdRef.current = latest.id;
+    if (latest.sender !== 'assistant') {
+      return;
+    }
+
+    const match = latest.content.match(/```sql\s*([\s\S]*?)```/i);
+    if (match) {
+      const extracted = match[1].trim();
+      if (extracted) {
+        setSqlEditorValue(extracted);
+  setIsSideWindowOpen(true);
+      }
+    }
+  }, [currentMessages]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -205,6 +363,37 @@ const App: React.FC = () => {
     setDatabaseFeedback(null);
   };
 
+  const handleToggleSideWindow = () => {
+    if (!currentUser) {
+      openAuthModal('signin');
+      return;
+    }
+
+    if (!canUseDatabaseTools) {
+      handleOpenDatabaseSettings();
+      return;
+    }
+
+    setSqlConsoleError(null);
+    setSqlSuggestionsError(null);
+
+    if (!isSideWindowOpen) {
+      setSqlSuggestions([]);
+      setSqlSuggestionAnalysis(null);
+      if (!sqlSchema) {
+        void handleRefreshDatabaseSchema();
+      }
+    }
+
+    setIsSideWindowOpen((prev) => !prev);
+  };
+
+  const handleCollapseSideWindow = () => {
+    setIsSideWindowOpen(false);
+    setSqlConsoleError(null);
+    setSqlSuggestionsError(null);
+  };
+
   const handleSaveDatabaseSettings = async (payload: UpdateDatabaseConnectionPayload) => {
     setIsDatabaseBusy(true);
     setDatabaseFeedback(null);
@@ -214,6 +403,7 @@ const App: React.FC = () => {
       setDatabaseSettings(result.connection);
       setDatabaseModes(result.availableModes);
       setEnvironmentFallback(result.environmentFallback ?? null);
+      resetSqlConsoleState();
       const successMessage = payload.testConnection
         ? 'Database connection saved and verified.'
         : 'Database connection updated.';
@@ -257,6 +447,7 @@ const App: React.FC = () => {
       setDatabaseSettings(result.connection);
       setDatabaseModes(result.availableModes);
       setEnvironmentFallback(result.environmentFallback ?? null);
+      resetSqlConsoleState({ close: true });
       setDatabaseFeedback({
         status: 'success',
         message: 'Database connection removed. Configure a new source to run SQL queries.',
@@ -321,6 +512,7 @@ const App: React.FC = () => {
       setDatabaseModes([]);
       setEnvironmentFallback(null);
       setDatabaseFeedback(null);
+      resetSqlConsoleState({ close: true });
     }
   };
 
@@ -487,9 +679,34 @@ const App: React.FC = () => {
 
   const databaseSummary = (() => {
     if (!currentUser) return 'Sign in';
-    if (databaseSettings) return databaseSettings.displayName || 'Connected';
+    if (isDatabaseLoading) return 'Loading...';
+    if (activeConnection) return activeConnection.displayName || activeConnection.label || 'Connected';
     return 'Select database';
   })();
+
+  const sqlConnectionSummary = activeConnection
+    ? activeConnection.displayName || activeConnection.label || 'Connected database'
+    : 'Database not configured';
+
+  const sideWindowProps: SqlSideWindowProps = {
+    isOpen: isSideWindowOpen,
+    onCollapse: handleCollapseSideWindow,
+    connectionSummary: sqlConnectionSummary,
+    schema: sqlSchema,
+    isSchemaLoading,
+    onRefreshSchema: handleRefreshDatabaseSchema,
+    onExecuteQuery: handleExecuteSqlQuery,
+    isExecuting: isExecutingSql,
+    history: sqlHistory,
+    errorMessage: sqlConsoleError,
+    onRequestSuggestions: handleRequestSqlSuggestions,
+    isSuggesting: isFetchingSqlSuggestions,
+    suggestions: sqlSuggestions,
+    suggestionsError: sqlSuggestionsError,
+    suggestionAnalysis: sqlSuggestionAnalysis,
+    queryText: sqlEditorValue,
+    onChangeQuery: setSqlEditorValue,
+  };
 
   return (
     <div className="flex h-screen text-white bg-[#030407] dark:bg-[radial-gradient(ellipse_at_top,_rgba(25,40,85,0.35),_transparent_70%)]">
@@ -522,6 +739,10 @@ const App: React.FC = () => {
         onSignOut={handleSignOut}
         onOpenDatabaseSettings={handleOpenDatabaseSettings}
         databaseSummary={databaseSummary}
+        onToggleSideWindow={handleToggleSideWindow}
+        isSideWindowOpen={isSideWindowOpen}
+        canUseDatabaseTools={canUseDatabaseTools}
+        sideWindow={sideWindowProps}
       />
       <AuthModal
         isOpen={authModalState.open}

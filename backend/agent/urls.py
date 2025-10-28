@@ -14,6 +14,9 @@ from .views import (
     register_user,
     database_connection_view,
     test_database_connection_view,
+    database_schema_view,
+    execute_sql_query_view,
+    sql_query_suggestions_view,
 )
 
 app_name = "agent"
@@ -32,4 +35,7 @@ urlpatterns = [
     path("auth/password/reset/confirm/", confirm_password_reset, name="password-reset-confirm"),
     path("database/connection/", database_connection_view, name="database-connection"),
     path("database/connection/test/", test_database_connection_view, name="database-connection-test"),
+    path("database/query/", execute_sql_query_view, name="database-query"),
+    path("database/query/suggestions/", sql_query_suggestions_view, name="database-query-suggestions"),
+    path("database/schema/", database_schema_view, name="database-schema"),
 ]

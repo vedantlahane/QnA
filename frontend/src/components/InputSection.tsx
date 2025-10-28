@@ -19,6 +19,9 @@ interface InputSectionProps {
   onRequireAuth: (mode: 'signin' | 'signup') => void;
   onOpenDatabaseSettings: () => void;
   databaseSummary: string;
+  onToggleSideWindow: () => void;
+  isSideWindowOpen: boolean;
+  canUseDatabaseTools: boolean;
 }
 
 const formatFileSize = (size: number) => {
@@ -35,6 +38,9 @@ const InputSection: React.FC<InputSectionProps> = ({
   onRequireAuth,
   onOpenDatabaseSettings,
   databaseSummary,
+  onToggleSideWindow,
+  isSideWindowOpen,
+  canUseDatabaseTools,
 }) => {
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<FileTile[]>([]);
@@ -279,12 +285,28 @@ const InputSection: React.FC<InputSectionProps> = ({
     onOpenDatabaseSettings();
   };
 
+  const handleSideWindowToggle = () => {
+    if (isHistoryActive) return;
+    if (!isAuthenticated) {
+      onRequireAuth('signin');
+      return;
+    }
+    if (!canUseDatabaseTools) {
+      onOpenDatabaseSettings();
+      return;
+    }
+    onToggleSideWindow();
+  };
+
   const hasUploadingFiles = files.some((tile) => tile.status === 'uploading');
   const canSend = message.trim().length > 0;
   const voiceButtonDisabled = isHistoryActive || isSending || !isSpeechSupported || !isAuthenticated;
   const isSendDisabled =
     isHistoryActive || isSending || hasUploadingFiles || !canSend || !isAuthenticated;
   const databaseButtonDisabled = isHistoryActive || isSending;
+  const sideWindowDisabled = databaseButtonDisabled || (!canUseDatabaseTools && !isSideWindowOpen);
+  const sideWindowButtonLabel = isSideWindowOpen ? 'Hide window' : 'Side window';
+  const sideWindowAriaLabel = isSideWindowOpen ? 'Hide SQL side window' : 'Open SQL side window';
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -487,6 +509,31 @@ const InputSection: React.FC<InputSectionProps> = ({
               <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
             </svg>
             <span className="max-w-[120px] truncate">{databaseSummary}</span>
+          </motion.button>
+
+          <motion.button
+            type="button"
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 transition hover:border-white/20 hover:text-white"
+            aria-label={sideWindowAriaLabel}
+            whileHover={sideWindowDisabled ? {} : { scale: 1.03 }}
+            whileTap={sideWindowDisabled ? {} : { scale: 0.97 }}
+            onClick={handleSideWindowToggle}
+            disabled={sideWindowDisabled}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="4" width="18" height="16" rx="2" ry="2" />
+              <path d="M7 8h6M7 12h10M7 16h4" />
+            </svg>
+            <span className="max-w-[120px] truncate">{sideWindowButtonLabel}</span>
           </motion.button>
 
           <motion.button

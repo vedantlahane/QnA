@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ChatDisplay from "./ChatDisplay";
 import InputSection from "./InputSection";
+import SqlSideWindow, { type SqlSideWindowProps } from "./SqlSideWindow";
 import type { ChatMessage, ConversationSummary } from "../App";
 import type { UserProfile } from "../services/chatApi";
 
@@ -23,6 +24,10 @@ interface MainPanelProps {
   onSignOut: () => Promise<void> | void;
   onOpenDatabaseSettings: () => void;
   databaseSummary: string;
+  onToggleSideWindow: () => void;
+  isSideWindowOpen: boolean;
+  canUseDatabaseTools: boolean;
+  sideWindow: SqlSideWindowProps;
 }
 
 const MainPanel: React.FC<MainPanelProps> = ({
@@ -43,6 +48,10 @@ const MainPanel: React.FC<MainPanelProps> = ({
   onSignOut,
   onOpenDatabaseSettings,
   databaseSummary,
+  onToggleSideWindow,
+  isSideWindowOpen,
+  canUseDatabaseTools,
+  sideWindow,
 }) => {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
@@ -86,7 +95,8 @@ const MainPanel: React.FC<MainPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-1 flex-col dark:bg-[radial-gradient(ellipse_at_top,_rgba(0,100,100,0.25),_transparent_65%)] bg-[radial-gradient(ellipse_at_top,_rgba(30,45,85,0.25),_transparent_65%)]">
+    <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col dark:bg-[radial-gradient(ellipse_at_top,_rgba(0,100,100,0.25),_transparent_65%)] bg-[radial-gradient(ellipse_at_top,_rgba(30,45,85,0.25),_transparent_65%)]">
       <div className="px-8 pt-4">
         <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 rounded-3xl  backdrop-blur-xl">
           <motion.button
@@ -271,17 +281,20 @@ const MainPanel: React.FC<MainPanelProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <ChatDisplay
-          view={currentView}
-          messages={messages}
-          historyConversations={historyConversations}
-          selectedHistoryId={selectedHistoryId}
-          onSelectHistory={onSelectHistory}
-          onViewChange={onViewChange}
-          onDeleteConversation={onDeleteConversation}
-          isChatLoading={isChatLoading}
-        />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          <ChatDisplay
+            view={currentView}
+            messages={messages}
+            historyConversations={historyConversations}
+            selectedHistoryId={selectedHistoryId}
+            onSelectHistory={onSelectHistory}
+            onViewChange={onViewChange}
+            onDeleteConversation={onDeleteConversation}
+            isChatLoading={isChatLoading}
+          />
+        </div>
+        <SqlSideWindow {...sideWindow} />
       </div>
 
       <InputSection
@@ -293,7 +306,11 @@ const MainPanel: React.FC<MainPanelProps> = ({
         onRequireAuth={onOpenAuthModal}
         onOpenDatabaseSettings={onOpenDatabaseSettings}
         databaseSummary={databaseSummary}
+        onToggleSideWindow={onToggleSideWindow}
+        isSideWindowOpen={isSideWindowOpen}
+        canUseDatabaseTools={canUseDatabaseTools}
       />
+    </div>
     </div>
   );
 };

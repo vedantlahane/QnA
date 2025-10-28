@@ -21,7 +21,10 @@ from .graph.sql_tool import (
 	AVAILABLE_DATABASE_MODES,
 	SQLConnectionDetails,
 	clear_sql_toolkit_cache,
+	describe_sql_schema,
+	execute_raw_sql_query,
 	get_environment_connection,
+	generate_sql_suggestions,
 	resolve_connection_details,
 	test_sql_connection,
 	use_sql_connection,
@@ -604,6 +607,160 @@ def test_database_connection_view(request: HttpRequest) -> JsonResponse:
 			"resolvedSqlitePath": connection_details.sqlite_path,
 		}
 	)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def execute_sql_query_view(request: HttpRequest) -> JsonResponse:
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	try:
+		payload = json.loads(request.body or "{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	query = payload.get("query")
+	if not isinstance(query, str) or not query.strip():
+		return JsonResponse({"error": "A SQL query is required."}, status=400)
+
+	limit_value = payload.get("limit")
+	limit = 200
+	if limit_value is not None:
+		try:
+			limit = int(limit_value)
+		except (TypeError, ValueError):
+			return JsonResponse({"error": "The 'limit' field must be an integer."}, status=400)
+		if limit <= 0:
+			return JsonResponse({"error": "The 'limit' field must be greater than zero."}, status=400)
+		if limit > 1000:
+			limit = 1000
+
+	connection_details = _resolve_user_database_details(request.user)
+	if connection_details is None:
+		connection_details = get_environment_connection()
+	if connection_details is None:
+		return JsonResponse({"error": "No database connection is configured."}, status=400)
+
+	try:
+		response_payload = execute_raw_sql_query(connection_details, query, limit=limit)
+	except ValueError as exc:
+		return JsonResponse({"error": str(exc)}, status=400)
+	except Exception as exc:
+		return JsonResponse({"error": f"Unable to execute query: {exc}"}, status=400)
+
+	response_payload.update(
+		{
+			"connection": {
+				"label": connection_details.label,
+				"mode": connection_details.mode,
+			},
+		}
+	)
+	return JsonResponse(response_payload)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def sql_query_suggestions_view(request: HttpRequest) -> JsonResponse:
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	try:
+		payload = json.loads(request.body or "{}")
+	except json.JSONDecodeError:
+		return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+
+	query = payload.get("query")
+	if not isinstance(query, str) or not query.strip():
+		return JsonResponse({"error": "A SQL query is required."}, status=400)
+
+	include_schema = bool(payload.get("includeSchema", False))
+	max_suggestions_value = payload.get("maxSuggestions")
+	max_suggestions = 3
+	if max_suggestions_value is not None:
+		try:
+			max_suggestions = int(max_suggestions_value)
+		except (TypeError, ValueError):
+			return JsonResponse({"error": "The 'maxSuggestions' field must be an integer."}, status=400)
+		if max_suggestions <= 0:
+			return JsonResponse({"error": "The 'maxSuggestions' field must be greater than zero."}, status=400)
+		max_suggestions = min(max_suggestions, 5)
+
+	connection_details = _resolve_user_database_details(request.user)
+	if connection_details is None:
+		connection_details = get_environment_connection()
+	if connection_details is None:
+		return JsonResponse({"error": "No database connection is configured."}, status=400)
+
+	schema_snapshot = None
+	schema_error: Optional[str] = None
+	if include_schema:
+		try:
+			schema_snapshot = describe_sql_schema(connection_details)
+		except Exception as exc:
+			schema_error = f"Unable to load schema details: {exc}"
+
+	try:
+		suggestion_payload = generate_sql_suggestions(
+			connection_details,
+			query,
+			schema_snapshot=schema_snapshot,
+			max_suggestions=max_suggestions,
+		)
+	except ValueError as exc:
+		return JsonResponse({"error": str(exc)}, status=400)
+	except EnvironmentError as exc:
+		return JsonResponse({"error": str(exc)}, status=400)
+	except Exception as exc:
+		return JsonResponse({"error": f"Unable to generate suggestions: {exc}"}, status=500)
+
+	response_payload: Dict[str, Any] = {
+		"originalQuery": query.strip(),
+		"analysis": suggestion_payload.get("analysis"),
+		"suggestions": suggestion_payload.get("suggestions", []),
+		"connection": {
+			"label": connection_details.label,
+			"mode": connection_details.mode,
+		},
+		"generatedAt": timezone.now().isoformat(),
+		"schemaIncluded": bool(schema_snapshot),
+	}
+	if schema_error:
+		response_payload["schemaError"] = schema_error
+
+	return JsonResponse(response_payload)
+
+
+@require_http_methods(["GET"])
+def database_schema_view(request: HttpRequest) -> JsonResponse:
+	auth_response = _ensure_authenticated(request)
+	if auth_response is not None:
+		return auth_response
+
+	connection_details = _resolve_user_database_details(request.user)
+	if connection_details is None:
+		connection_details = get_environment_connection()
+	if connection_details is None:
+		return JsonResponse({"error": "No database connection is configured."}, status=400)
+
+	try:
+		schema_payload = describe_sql_schema(connection_details)
+	except Exception as exc:
+		return JsonResponse({"error": f"Unable to load schema: {exc}"}, status=400)
+
+	schema_payload.update(
+		{
+			"connection": {
+				"label": connection_details.label,
+				"mode": connection_details.mode,
+			},
+			"generatedAt": timezone.now().isoformat(),
+		}
+	)
+	return JsonResponse(schema_payload)
 
 def _resolve_user_database_details(user: Any) -> Optional[SQLConnectionDetails]:
 	instance = _get_user_database_connection(user)

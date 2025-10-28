@@ -268,6 +268,50 @@ const Sidebar: React.FC<SidebarProps> = ({
           </svg>
           {!collapsed && <span>{darkTheme ? 'Dark theme' : 'Light theme'}</span>}
         </motion.button>
+        {isAuthenticated ? (
+          <motion.button
+            type="button"
+            className="flex h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white/70 transition hover:bg-rose-500/10 hover:text-rose-200"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => void onSignOut()}
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white" aria-hidden>
+              {(currentUser?.name?.charAt(0) ?? currentUser?.email?.charAt(0) ?? 'A').toUpperCase()}
+            </span>
+            {!collapsed && (
+              <span className="flex flex-col items-start">
+                <span className="text-[10px] uppercase tracking-[0.25em] text-white/40">Sign out</span>
+                <span className="text-sm font-medium text-white/80">{currentUser?.name ?? currentUser?.email ?? 'Account'}</span>
+              </span>
+            )}
+          </motion.button>
+        ) : (
+          <motion.button
+            type="button"
+            className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => onRequireAuth('signin')}
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white" aria-hidden>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+              </svg>
+            </span>
+            {!collapsed && <span>Sign in</span>}
+          </motion.button>
+        )}
       </div>
     </motion.aside>
   );

@@ -74,6 +74,101 @@ export interface DatabaseConnectionTestResult {
   resolvedSqlitePath?: string | null;
 }
 
+export interface SqlQueryRowsResult {
+  type: 'rows';
+  columns: string[];
+  rows: Array<Array<unknown>>;
+  rowCount: number;
+  hasMore: boolean;
+  executionTimeMs: number;
+  connection: {
+    label: string;
+    mode: DatabaseMode;
+  };
+}
+
+export interface SqlQueryAckResult {
+  type: 'ack';
+  rowCount: number;
+  message: string;
+  executionTimeMs: number;
+  connection: {
+    label: string;
+    mode: DatabaseMode;
+  };
+}
+
+export type SqlQueryResult = SqlQueryRowsResult | SqlQueryAckResult;
+
+export interface RunSqlQueryPayload {
+  query: string;
+  limit?: number;
+}
+
+export interface SqlSchemaColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
+  default?: unknown;
+  primaryKey?: boolean;
+}
+
+export interface SqlSchemaForeignKey {
+  column: string;
+  referencedTable: string;
+  referencedColumn: string;
+}
+
+export interface SqlSchemaTable {
+  name: string;
+  columns: SqlSchemaColumn[];
+  foreignKeys: SqlSchemaForeignKey[];
+}
+
+export interface SqlSchemaView {
+  name: string;
+  columns: SqlSchemaColumn[];
+}
+
+export interface SqlSchemaPayload {
+  schema: string | null;
+  tables: SqlSchemaTable[];
+  views: SqlSchemaView[];
+  generatedAt: string;
+  connection: {
+    label: string;
+    mode: DatabaseMode;
+  };
+}
+
+export interface SqlQuerySuggestion {
+  id: string;
+  title: string;
+  summary: string;
+  query: string;
+  rationale?: string;
+  warnings?: string[];
+}
+
+export interface SqlSuggestionEnvelope {
+  originalQuery: string;
+  analysis?: string | null;
+  suggestions: SqlQuerySuggestion[];
+  generatedAt: string;
+  connection: {
+    label: string;
+    mode: DatabaseMode;
+  };
+  schemaIncluded: boolean;
+  schemaError?: string;
+}
+
+export interface SqlSuggestionRequestPayload {
+  query: string;
+  includeSchema?: boolean;
+  maxSuggestions?: number;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let errorMessage = `Request failed with status ${response.status}`;
@@ -327,4 +422,38 @@ export async function testDatabaseConnectionSettings(payload: UpdateDatabaseConn
   });
 
   return handleResponse<DatabaseConnectionTestResult>(response);
+}
+
+export async function runSqlQuery(payload: RunSqlQueryPayload): Promise<SqlQueryResult> {
+  const response = await fetch(`${API_BASE_URL}/database/query/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  return handleResponse<SqlQueryResult>(response);
+}
+
+export async function fetchDatabaseSchema(): Promise<SqlSchemaPayload> {
+  const response = await fetch(`${API_BASE_URL}/database/schema/`, {
+    credentials: 'include',
+  });
+
+  return handleResponse<SqlSchemaPayload>(response);
+}
+
+export async function requestSqlSuggestions(payload: SqlSuggestionRequestPayload): Promise<SqlSuggestionEnvelope> {
+  const response = await fetch(`${API_BASE_URL}/database/query/suggestions/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+
+  return handleResponse<SqlSuggestionEnvelope>(response);
 }
