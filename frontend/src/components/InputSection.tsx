@@ -47,6 +47,7 @@ const InputSection: React.FC<InputSectionProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const previewsRef = useRef(new Map<string, string>());
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -77,6 +78,16 @@ const InputSection: React.FC<InputSectionProps> = ({
       setMessage('');
     }
   }, [isHistoryActive, message]);
+
+  useEffect(() => {
+    const element = messageInputRef.current;
+    if (!element) {
+      return;
+    }
+    element.style.height = 'auto';
+    const maxHeight = 200;
+    element.style.height = `${Math.min(element.scrollHeight, maxHeight)}px`;
+  }, [message]);
 
   useEffect(() => {
     if (!isHistoryActive || files.length === 0) {
@@ -308,7 +319,7 @@ const InputSection: React.FC<InputSectionProps> = ({
   const sideWindowButtonLabel = isSideWindowOpen ? 'Hide window' : 'Side window';
   const sideWindowAriaLabel = isSideWindowOpen ? 'Hide SQL side window' : 'Open SQL side window';
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       if (!isSendDisabled) {
@@ -469,34 +480,37 @@ const InputSection: React.FC<InputSectionProps> = ({
 
           <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="sr-only" />
 
-          <input
-            type="text"
+          <textarea
+            ref={messageInputRef}
+            rows={1}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder={
               isHistoryActive
                 ? 'Switch back to Chat to send a message'
                 : isAuthenticated
-                  ? 'Ask AXON ....'
+                  ? 'Ask Axon anything…'
                   : 'Sign in to start chatting'
             }
-            className="flex-1 bg-transparent py-2 text-sm text-white placeholder:text-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex-1 resize-none bg-transparent py-2 text-sm text-white placeholder:text-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             onKeyDown={handleKeyDown}
             disabled={isHistoryActive || !isAuthenticated}
+            aria-label="Chat message"
           />
 
           <motion.button
             type="button"
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 transition hover:border-white/20 hover:text-white"
+            className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
             aria-label="Configure database connection"
+            title={databaseSummary}
             whileHover={databaseButtonDisabled ? {} : { scale: 1.03 }}
             whileTap={databaseButtonDisabled ? {} : { scale: 0.97 }}
             onClick={handleDatabaseConfig}
             disabled={databaseButtonDisabled}
           >
             <svg
-              width="14"
-              height="14"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -508,21 +522,21 @@ const InputSection: React.FC<InputSectionProps> = ({
               <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
               <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
             </svg>
-            <span className="max-w-[120px] truncate">{databaseSummary}</span>
           </motion.button>
 
           <motion.button
             type="button"
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 transition hover:border-white/20 hover:text-white"
+            className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
             aria-label={sideWindowAriaLabel}
+            title={sideWindowButtonLabel}
             whileHover={sideWindowDisabled ? {} : { scale: 1.03 }}
             whileTap={sideWindowDisabled ? {} : { scale: 0.97 }}
             onClick={handleSideWindowToggle}
             disabled={sideWindowDisabled}
           >
             <svg
-              width="14"
-              height="14"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -531,9 +545,9 @@ const InputSection: React.FC<InputSectionProps> = ({
               strokeLinejoin="round"
             >
               <rect x="3" y="4" width="18" height="16" rx="2" ry="2" />
-              <path d="M7 8h6M7 12h10M7 16h4" />
+              <path d="M9 4v16" />
+              <path d="M7 8h6M7 12h6M7 16h6" />
             </svg>
-            <span className="max-w-[120px] truncate">{sideWindowButtonLabel}</span>
           </motion.button>
 
           <motion.button

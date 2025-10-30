@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import MainPanel from './components/MainPanel';
 import AuthModal from './components/AuthModal';
 import DatabaseConnectionModal from './components/DatabaseConnectionModal';
-import { type SqlSideWindowProps, type SqlQueryHistoryEntry } from './components/SqlSideWindow';
+import { type SqlSideWindowProps, type SqlQueryHistoryEntry } from './components/Canvas';
 import {
   fetchConversation,
   fetchConversations,

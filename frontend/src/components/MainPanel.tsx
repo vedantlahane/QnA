@@ -2,10 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ChatDisplay from "./ChatDisplay";
 import InputSection from "./InputSection";
-import SqlSideWindow, { type SqlSideWindowProps } from "./SqlSideWindow";
+import Canvas, { type SqlSideWindowProps } from "./Canvas";
 import type { ChatMessage, ConversationSummary } from "../App";
 import type { UserProfile } from "../services/chatApi";
 
+/**
+ * Layout contract for the main chat surface. Each prop maps to a control in the surrounding shell
+ * (sidebar, chat area, SQL side drawer) so that higher-level containers can orchestrate state.
+ */
 interface MainPanelProps {
   currentView: "chat" | "history";
   onViewChange: (view: "chat" | "history") => void;
@@ -13,14 +17,17 @@ interface MainPanelProps {
   historyConversations: ConversationSummary[];
   selectedHistoryId: string | null;
   onSelectHistory: (conversationId: string) => void;
-  onSendMessage: (content: string, options?: { documentIds?: string[] }) => Promise<void> | void;
+  onSendMessage: (
+    content: string,
+    options?: { documentIds?: string[] }
+  ) => Promise<void> | void;
   onStartNewChat: () => void;
   isChatLoading: boolean;
   onDeleteConversation: (conversationId: string) => Promise<void> | void;
   inputSessionKey: string;
   isAuthenticated: boolean;
   currentUser: UserProfile | null;
-  onOpenAuthModal: (mode: 'signin' | 'signup') => void;
+  onOpenAuthModal: (mode: "signin" | "signup") => void;
   onSignOut: () => Promise<void> | void;
   onOpenDatabaseSettings: () => void;
   databaseSummary: string;
@@ -30,6 +37,11 @@ interface MainPanelProps {
   sideWindow: SqlSideWindowProps;
 }
 
+/**
+ * Renders the primary application workspace, wiring together chat history, the live conversation,
+ * settings overlay, and optional SQL side tooling. It focuses on presentation while delegating all
+ * business logic to callbacks provided via {@link MainPanelProps}.
+ */
 const MainPanel: React.FC<MainPanelProps> = ({
   currentView,
   onViewChange,
@@ -58,6 +70,7 @@ const MainPanel: React.FC<MainPanelProps> = ({
 
   useEffect(() => {
     if (!showSettingsMenu) return;
+    // Close the floating settings card when a click lands outside the menu bounds.
     const handleClick = (event: MouseEvent) => {
       if (!settingsRef.current) return;
       if (settingsRef.current.contains(event.target as Node)) return;
@@ -76,6 +89,7 @@ const MainPanel: React.FC<MainPanelProps> = ({
   );
 
   const subtitle = useMemo(() => {
+    // Keep the header status text in sync with loading state and the active conversation context.
     if (isChatLoading) {
       return "   •   Axon is thinking…";
     }
@@ -95,14 +109,13 @@ const MainPanel: React.FC<MainPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <div className="flex min-w-0 flex-1 flex-col dark:bg-[radial-gradient(ellipse_at_top,_rgba(0,100,100,0.25),_transparent_65%)] bg-[radial-gradient(ellipse_at_top,_rgba(30,45,85,0.25),_transparent_65%)]">
-      <div className="px-8 pt-4">
-        <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 rounded-3xl  backdrop-blur-xl">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 bg-[radial-gradient(ellipse_at_top,_rgba(30,45,85,0.25),_transparent_65%)] px-6 pb-6 pt-4 dark:bg-[radial-gradient(ellipse_at_top,_rgba(0,100,100,0.25),_transparent_65%)] lg:px-5">
+      <header className=" backdrop-blur-xl">
+        <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4">
           <motion.button
             type="button"
             onClick={handleBack}
-            className={`group/back flex items-center gap-2 rounded-full  text-sm font-medium text-white/70 transition ${
+            className={`group/back flex items-center gap-2 rounded-full text-sm font-medium text-white/70 transition ${
               showLanding
                 ? "opacity-60 hover:opacity-100"
                 : "hover:bg-white/10 hover:text-white"
@@ -132,13 +145,12 @@ const MainPanel: React.FC<MainPanelProps> = ({
             </span>
           </motion.button>
 
-            <div className="flex justify-center items-center text-center">
-            <span className="text-sm font-semibold uppercase tracking-[0.3em] text-white/50">
+          <div className="flex flex-col items-center justify-center text-center text-white">
+            <span className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">
               Axon Copilot
             </span>
-            
             <span className="text-sm text-white/60">{subtitle}</span>
-            </div>
+          </div>
 
           <div className="relative" ref={settingsRef}>
             <motion.button
@@ -180,13 +192,21 @@ const MainPanel: React.FC<MainPanelProps> = ({
                   transition={{ duration: 0.18 }}
                   className="absolute right-0 z-30 mt-3 w-56 rounded-2xl border border-white/10 bg-[#0b1220]/95 p-3 text-sm text-white/80 shadow-lg backdrop-blur"
                 >
-                  <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/40">Account</p>
+                  <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/40">
+                    Account
+                  </p>
                   {isAuthenticated ? (
                     <>
                       <div className="flex w-full flex-col gap-1 rounded-xl bg-white/5 px-3 py-2 text-left text-xs text-white/70">
-                        <span className="text-[10px] uppercase text-white/40">Signed in as</span>
-                        <span className="text-sm font-medium text-white">{currentUser?.name ?? currentUser?.email}</span>
-                        <span className="text-xs text-white/50">{currentUser?.email}</span>
+                        <span className="text-[10px] uppercase text-white/40">
+                          Signed in as
+                        </span>
+                        <span className="text-sm font-medium text-white">
+                          {currentUser?.name ?? currentUser?.email}
+                        </span>
+                        <span className="text-xs text-white/50">
+                          {currentUser?.email}
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -206,7 +226,7 @@ const MainPanel: React.FC<MainPanelProps> = ({
                         className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/10 hover:text-white"
                         onClick={() => {
                           setShowSettingsMenu(false);
-                          onOpenAuthModal('signin');
+                          onOpenAuthModal("signin");
                         }}
                       >
                         Sign in
@@ -216,7 +236,7 @@ const MainPanel: React.FC<MainPanelProps> = ({
                         className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/10 hover:text-white"
                         onClick={() => {
                           setShowSettingsMenu(false);
-                          onOpenAuthModal('signup');
+                          onOpenAuthModal("signup");
                         }}
                       >
                         Create account
@@ -224,7 +244,9 @@ const MainPanel: React.FC<MainPanelProps> = ({
                     </>
                   )}
                   <div className="mt-3 border-t border-white/10 pt-3">
-                    <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/40">Appearance</p>
+                    <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/40">
+                      Appearance
+                    </p>
                     <button
                       type="button"
                       className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/10 hover:text-white"
@@ -234,7 +256,9 @@ const MainPanel: React.FC<MainPanelProps> = ({
                       }}
                     >
                       Reset workspace
-                      <span className="text-[10px] uppercase text-white/40">Clear</span>
+                      <span className="text-[10px] uppercase text-white/40">
+                        Clear
+                      </span>
                     </button>
                     {isAuthenticated ? null : (
                       <button
@@ -242,11 +266,13 @@ const MainPanel: React.FC<MainPanelProps> = ({
                         className="mt-2 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/10 hover:text-white"
                         onClick={() => {
                           setShowSettingsMenu(false);
-                          onOpenAuthModal('signin');
+                          onOpenAuthModal("signin");
                         }}
                       >
                         Unlock more
-                        <span className="text-[10px] uppercase text-white/40">Sign in</span>
+                        <span className="text-[10px] uppercase text-white/40">
+                          Sign in
+                        </span>
                       </button>
                     )}
                     <button
@@ -255,12 +281,16 @@ const MainPanel: React.FC<MainPanelProps> = ({
                       onClick={() => setShowSettingsMenu(false)}
                     >
                       Theme
-                      <span className="text-[10px] uppercase text-white/40">Auto</span>
+                      <span className="text-[10px] uppercase text-white/40">
+                        Auto
+                      </span>
                     </button>
                   </div>
                   {isAuthenticated && (
                     <div className="mt-3 border-t border-white/10 pt-3">
-                      <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/40">Data</p>
+                      <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/40">
+                        Data
+                      </p>
                       <button
                         type="button"
                         className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/10 hover:text-white"
@@ -270,7 +300,9 @@ const MainPanel: React.FC<MainPanelProps> = ({
                         }}
                       >
                         Database
-                        <span className="text-[10px] uppercase text-white/40">{databaseSummary}</span>
+                        <span className="text-[10px] uppercase text-white/40">
+                          {databaseSummary}
+                        </span>
                       </button>
                     </div>
                   )}
@@ -279,38 +311,41 @@ const MainPanel: React.FC<MainPanelProps> = ({
             </AnimatePresence>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex-1 min-w-0 overflow-y-auto">
-          <ChatDisplay
-            view={currentView}
-            messages={messages}
-            historyConversations={historyConversations}
-            selectedHistoryId={selectedHistoryId}
-            onSelectHistory={onSelectHistory}
-            onViewChange={onViewChange}
-            onDeleteConversation={onDeleteConversation}
-            isChatLoading={isChatLoading}
-          />
-        </div>
-        <SqlSideWindow {...sideWindow} />
+      <div className="flex min-h-0 flex-1">
+        <Canvas sideWindow={sideWindow}>
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col ">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <ChatDisplay
+                  view={currentView}
+                  messages={messages}
+                  historyConversations={historyConversations}
+                  selectedHistoryId={selectedHistoryId}
+                  onSelectHistory={onSelectHistory}
+                  onViewChange={onViewChange}
+                  onDeleteConversation={onDeleteConversation}
+                  isChatLoading={isChatLoading}
+                />
+              </div>
+              <InputSection
+                key={inputSessionKey}
+                onSend={onSendMessage}
+                isHistoryActive={currentView === "history"}
+                isSending={isChatLoading}
+                isAuthenticated={isAuthenticated}
+                onRequireAuth={onOpenAuthModal}
+                onOpenDatabaseSettings={onOpenDatabaseSettings}
+                databaseSummary={databaseSummary}
+                onToggleSideWindow={onToggleSideWindow}
+                isSideWindowOpen={isSideWindowOpen}
+                canUseDatabaseTools={canUseDatabaseTools}
+              />
+            </div>
+          </div>
+        </Canvas>
       </div>
-
-      <InputSection
-        key={inputSessionKey}
-        onSend={onSendMessage}
-        isHistoryActive={currentView === "history"}
-        isSending={isChatLoading}
-        isAuthenticated={isAuthenticated}
-        onRequireAuth={onOpenAuthModal}
-        onOpenDatabaseSettings={onOpenDatabaseSettings}
-        databaseSummary={databaseSummary}
-        onToggleSideWindow={onToggleSideWindow}
-        isSideWindowOpen={isSideWindowOpen}
-        canUseDatabaseTools={canUseDatabaseTools}
-      />
-    </div>
     </div>
   );
 };
