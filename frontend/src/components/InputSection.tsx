@@ -329,7 +329,7 @@ const InputSection: React.FC<InputSectionProps> = ({
   };
 
   return (
-    <footer className="sticky bottom-10 z-30 flex justify-center px-6 pb-5 pt-4 backdrop-blur-xl">
+    <footer className="sticky bottom-10 z-30 flex justify-center px-6  pt-4 backdrop-blur-xl">
       <div className="w-full max-w-3xl">
         <AnimatePresence>
           {files.length > 0 && (

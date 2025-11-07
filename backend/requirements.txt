@@ -10,6 +10,6 @@ langsmith
 langchainhub
 pypdf
 langchain-openai
-langchain-unstructured
 langchain-tavily
 pymysql
+langchain-chroma

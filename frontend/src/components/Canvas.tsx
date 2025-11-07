@@ -258,9 +258,6 @@ const Canvas: React.FC<CanvasProps> = ({ children, sideWindow }) => {
       return (
         <section className="flex flex-col gap-3">
           <header className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-[0.3em] text-white/40">
-              History
-            </span>
             <span className="text-xs text-white/40">
               {history.length} saved
             </span>
@@ -297,9 +294,7 @@ const Canvas: React.FC<CanvasProps> = ({ children, sideWindow }) => {
     return (
       <section className="flex flex-col gap-3">
         <header className="flex items-center justify-between">
-          <span className="text-xs uppercase tracking-[0.3em] text-white/40">
-            Suggestions
-          </span>
+          
           {suggestionAnalysis && (
             <span className="text-[10px] text-white/40">Updated just now</span>
           )}
@@ -537,9 +532,7 @@ const Canvas: React.FC<CanvasProps> = ({ children, sideWindow }) => {
           )}
         </section>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] uppercase tracking-[0.25em] text-white/40">
-            Panels
-          </span>
+          
           <div className="flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1 text-xs text-white/60">
             <button
               type="button"
@@ -571,10 +564,10 @@ const Canvas: React.FC<CanvasProps> = ({ children, sideWindow }) => {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row py-5">
       <div
         className={`flex min-w-0 flex-1 overflow-hidden transition-[flex-basis] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          isOpen ? "lg:basis-1/2 lg:max-w-[50%]" : "lg:basis-full lg:max-w-full"
+          isOpen ? "lg:basis-1/2 lg:max-w-[50%]" : "lg:basis-full lg:max-w-full "
         }`}
       >
         {children}
