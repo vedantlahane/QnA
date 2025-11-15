@@ -148,10 +148,32 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+
+def _resolve_filesystem_path(path_candidate: str | Path) -> str:
+    """Normalize STATIC/MEDIA paths to absolute filesystem strings."""
+    candidate_path = Path(path_candidate).expanduser()
+    if not candidate_path.is_absolute():
+        candidate_path = (BASE_DIR / candidate_path).resolve()
+    return str(candidate_path)
+
+
+def _env_path(name: str, default: Path) -> str:
+    env_value = os.getenv(name)
+    if env_value is None or not env_value.strip():
+        return _resolve_filesystem_path(default)
+    return _resolve_filesystem_path(env_value)
+
+
+STATIC_ROOT = _env_path('STATIC_ROOT', BASE_DIR / 'staticfiles')
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = _env_path('MEDIA_ROOT', BASE_DIR / 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

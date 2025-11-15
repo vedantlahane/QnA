@@ -63,6 +63,7 @@ cp .env.example .env            # create if one doesn’t exist
 # adjust database settings in .env if you prefer a hosted SQL instance
 
 python manage.py migrate
+python manage.py collectstatic --noinput  # required before deployment so assets land in STATIC_ROOT
 python manage.py runserver
 ```
 
@@ -105,7 +106,12 @@ SQLITE_DB_PATH=/abs/path/to/db  # alternative absolute/relative path
 DATABASE_URL=postgres://user:pass@host:5432/dbname
 DATABASE_CONN_MAX_AGE=600       # optional persistent connection lifespan in seconds
 DATABASE_SSL_REQUIRE=True       # set to true/false depending on hosting requirements
+# Static files
+STATIC_ROOT=staticfiles        # optional – leave blank to fall back to backend/staticfiles
+STATIC_URL=/static/            # must include the leading/trailing slash
 ```
+
+> **Static asset tip:** `collectstatic` writes into `STATIC_ROOT`. When deploying (or when running the Ansible playbook), ensure this directory exists and is writable. Set `STATIC_ROOT` to an absolute path if the default `backend/staticfiles` does not live on the same filesystem.
 
 > **Security tip:** Keep `.env` files out of commits. Rotate keys immediately if they are exposed.
 

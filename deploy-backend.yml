@@ -1,0 +1,56 @@
+---
+- hosts: webserver
+  become: yes
+  vars:
+    project_path: /home/ubuntu/axon/backend
+    git_repo: "https://github.com/vedantlahane/Axon.git"
+    venv_path: /home/ubuntu/axon/backend/.venv
+
+  tasks:
+    - name: Update apt packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - git
+        state: present
+
+    - name: Clone/update the project repository
+      git:
+        repo: "{{ git_repo }}"
+        dest: /home/ubuntu/axon
+        version: main
+        force: yes
+        update: yes
+
+    - name: Create virtual environment
+      command: python3 -m venv "{{ venv_path }}"
+      args:
+        creates: "{{ venv_path }}"
+
+    - name: Install Python dependencies
+      pip:
+        requirements: "{{ project_path }}/requirements.txt"
+        virtualenv: "{{ venv_path }}"
+        virtualenv_python: python3
+
+    - name: Apply Django migrations
+      command: "{{ venv_path }}/bin/python manage.py migrate"
+      args:
+        chdir: "{{ project_path }}"
+
+    - name: Collect static files
+      command: "{{ venv_path }}/bin/python manage.py collectstatic --noinput"
+      args:
+        chdir: "{{ project_path }}"
+
+    - name: Run Django app on port 8000
+      shell: "nohup {{ venv_path }}/bin/python manage.py runserver 0.0.0.0:8000 &"
+      args:
+        chdir: "{{ project_path }}"
