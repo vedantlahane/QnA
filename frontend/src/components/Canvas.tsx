@@ -583,46 +583,49 @@ const Canvas: React.FC<CanvasProps> = ({ children, sideWindow }) => {
             className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[28px] border-dashed border border-white/10 px-4 text-white shadow-[0_30px_80px_-35px_rgba(37,99,235,0.75)] backdrop-blur-lg lg:basis-1/2 lg:max-w-[50%]"
           >
             <div className="flex items-center justify-between gap-4">
-              <nav className="mt-4 flex gap-2 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white/50">
-              {CANVAS_TABS.map((tab) => {
-                const isActive = activeTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveTab(tab)}
-                    className={`flex-1 rounded-lg px-3 py-2 transition ${
-                      isActive
-                        ? "bg-[#2563eb] text-white shadow-[0_12px_24px_-16px_rgba(37,99,235,0.9)]"
-                        : "hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    {TAB_LABELS[tab]}
-                  </button>
-                );
-              })}
-            </nav>
-              <button
-                type="button"
-                onClick={onCollapse}
-                className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
-                aria-label="Close SQL canvas"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <div className="flex flex-1 flex-col gap-1">
+                <nav className="mt-4 flex gap-2 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white/50">
+                {CANVAS_TABS.map((tab) => {
+                    const isActive = activeTab === tab;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setActiveTab(tab)}
+                        className={`flex-1 rounded-lg px-3 py-2 transition ${
+                          isActive
+                            ? "bg-[#2563eb] text-white shadow-[0_12px_24px_-16px_rgba(37,99,235,0.9)]"
+                            : "hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        {TAB_LABELS[tab]}
+                      </button>
+                    );
+                  })}
+                </nav>
+                <p className="text-[11px] text-white/40">{connectionSummary}</p>
+              </div>
+                <button
+                  type="button"
+                  onClick={onCollapse}
+                  className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Close SQL canvas"
                 >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
 
             
 
