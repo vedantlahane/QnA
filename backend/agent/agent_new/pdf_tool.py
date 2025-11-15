@@ -1,5 +1,11 @@
 from langchain.tools import tool
-from langchain_ch
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
+
+DEFAULT_PDF_PATH = "media/uploaded_docs/"
+
 
 
 
