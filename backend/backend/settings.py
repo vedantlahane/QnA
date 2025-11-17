@@ -194,6 +194,9 @@ DEFAULT_FRONTEND_ORIGINS = [
     'http://localhost:5173',
     'http://localhost:5174',
     'https://axoncanvas.vercel.app',
+    'https://axon-bw73n82h4-vedantlahanes-projects.vercel.app',
+    'https://axon-vedantlahanes-projects.vercel.app',
+    'https://axon-git-main-vedantlahanes-projects.vercel.app',
 ]
 
 CORS_ALLOWED_ORIGINS = _env_list('FRONTEND_ORIGINS', DEFAULT_FRONTEND_ORIGINS)
