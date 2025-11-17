@@ -7,7 +7,9 @@ interface SpeechRecognitionResult extends ArrayLike<SpeechRecognitionAlternative
   readonly isFinal: boolean;
 }
 
-interface SpeechRecognitionResultList extends ArrayLike<SpeechRecognitionResult> {}
+interface SpeechRecognitionResultList extends ArrayLike<SpeechRecognitionResult> {
+  item(index: number): SpeechRecognitionResult | null;
+}
 
 interface SpeechRecognitionEvent extends Event {
   readonly resultIndex: number;
@@ -34,13 +36,11 @@ interface SpeechRecognitionConstructor {
   new (): SpeechRecognition;
 }
 
-interface SpeechRecognitionWindow {
-  SpeechRecognition?: SpeechRecognitionConstructor;
-  webkitSpeechRecognition?: SpeechRecognitionConstructor;
-}
-
-declare var webkitSpeechRecognition: SpeechRecognitionConstructor;
+declare const webkitSpeechRecognition: SpeechRecognitionConstructor;
 
 declare global {
-  interface Window extends SpeechRecognitionWindow {}
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
 }

@@ -222,7 +222,6 @@ const Canvas: React.FC<CanvasProps> = ({ children, sideWindow }) => {
                 </tr>
               ) : (
                 result.rows.map((row, index) => (
-                  // eslint-disable-next-line react/no-array-index-key
                   <tr key={index} className="odd:bg-white/5">
                     {row.map((value, cellIndex) => (
                       <td
@@ -344,7 +343,6 @@ const Canvas: React.FC<CanvasProps> = ({ children, sideWindow }) => {
                 {suggestion.warnings?.length ? (
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-[11px] text-amber-200/80">
                     {suggestion.warnings.map((warning, index) => (
-                      // eslint-disable-next-line react/no-array-index-key
                       <li key={index}>{warning}</li>
                     ))}
                   </ul>
