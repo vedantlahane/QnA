@@ -24,6 +24,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR.parent / '.env', override=False)
 
 
+def _env_list(name: str, default: list[str]) -> list[str]:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    parsed = [entry.strip() for entry in raw_value.split(',') if entry.strip()]
+    return parsed if parsed else default
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -33,7 +41,10 @@ SECRET_KEY = 'django-insecure-i^xxm##v@nuq!hzfuxejtj$kqtwnydutg7kg%8!-%*cl+b86a%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1','13.235.83.16','ec2-13-235-83-16.ap-south-1.compute.amazonaws.com']
+ALLOWED_HOSTS = _env_list(
+    'DJANGO_ALLOWED_HOSTS',
+    ['localhost', '127.0.0.1', '13.235.83.16', 'ec2-13-235-83-16.ap-south-1.compute.amazonaws.com'],
+)
 
 
 # Application definition
@@ -99,7 +110,6 @@ DATABASES = {
         'NAME': default_sqlite_name,
     }
 }
-
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
     conn_max_age = int(os.getenv('DATABASE_CONN_MAX_AGE', '600'))
@@ -180,14 +190,14 @@ MEDIA_ROOT = _env_path('MEDIA_ROOT', BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOWED_ORIGINS = [
+DEFAULT_FRONTEND_ORIGINS = [
     'http://localhost:5173',
     'http://localhost:5174',
+    'https://axoncanvas.vercel.app',
 ]
+
+CORS_ALLOWED_ORIGINS = _env_list('FRONTEND_ORIGINS', DEFAULT_FRONTEND_ORIGINS)
 
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-]
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS', DEFAULT_FRONTEND_ORIGINS)

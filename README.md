@@ -97,7 +97,9 @@ OPEN_AI_API_KEY=sk-...         # maintained for libraries expecting this variant
 TAVILY_API_KEY=tvly-...
 DJANGO_SECRET_KEY=super-secret
 DEBUG=True
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,ec2-13-235-83-16.ap-south-1.compute.amazonaws.com,13.235.83.16
+FRONTEND_ORIGINS=http://localhost:5173,https://axoncanvas.vercel.app
+CSRF_TRUSTED_ORIGINS=http://localhost:5173,https://axoncanvas.vercel.app
 # Database (pick one of the following configurations)
 # 1. Local SQLite (default): optional overrides
 SQLITE_DB_NAME=db.sqlite3       # filename relative to backend/ (default)
@@ -121,7 +123,7 @@ STATIC_URL=/static/            # must include the leading/trailing slash
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-When deploying, point `VITE_API_BASE_URL` at the public API host.
+When deploying, point `VITE_API_BASE_URL` at the public API host (e.g., `https://your-domain/api`). If you front the frontend through Vercel, add the same value to the Vercel project’s Environment Variables so the bundle bakes in the correct origin.
 
 ---
 
