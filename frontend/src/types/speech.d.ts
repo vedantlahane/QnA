@@ -36,11 +36,14 @@ interface SpeechRecognitionConstructor {
   new (): SpeechRecognition;
 }
 
-declare const webkitSpeechRecognition: SpeechRecognitionConstructor;
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
+interface Window {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
 }
+
+declare const webkitSpeechRecognition: SpeechRecognitionConstructor;
