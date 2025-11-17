@@ -4,5 +4,11 @@
       "source": "/api/:path*",
       "destination": "http://ec2-13-235-83-16.ap-south-1.compute.amazonaws.com:8000/api/:path*"
     }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "http://ec2-13-235-83-16.ap-south-1.compute.amazonaws.com:8000/api/$1"
+    }
   ]
 }
