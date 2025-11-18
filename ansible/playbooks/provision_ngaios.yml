@@ -1,0 +1,67 @@
+---
+- name: Provision Ngaios monitoring host
+  hosts: monitoring
+  become: yes
+  vars:
+    nagios_admin_user: ngaiosadmin
+    nagios_admin_password: "ChangeMe123!"
+    nagios_packages:
+      - apache2
+      - php
+      - libapache2-mod-php
+      - nagios4
+      - nagios-plugins-contrib
+      - monitoring-plugins-basic
+
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  tasks:
+    - name: Install Ngaios packages
+      ansible.builtin.apt:
+        name: "{{ nagios_packages }}"
+        state: present
+
+    - name: Enable required Apache modules
+      ansible.builtin.command: "a2enmod {{ item }}"
+      loop:
+        - cgi
+        - rewrite
+      args:
+        creates: "/etc/apache2/mods-enabled/{{ item }}.load"
+
+    - name: Configure Ngaios admin credentials
+      ansible.builtin.htpasswd:
+        path: /etc/nagios4/htpasswd.users
+        name: "{{ nagios_admin_user }}"
+        password: "{{ nagios_admin_password }}"
+        crypt_scheme: md5
+
+    - name: Ensure Apache service is enabled
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+        enabled: yes
+
+    - name: Ensure Nagios service is enabled
+      ansible.builtin.service:
+        name: nagios4
+        state: restarted
+        enabled: yes
+    
+    - name: Install Axon backend monitoring config
+      ansible.builtin.template:
+        src: nagios-axon-backend.cfg.j2
+        dest: /etc/nagios4/conf.d/axon-backend.cfg
+        mode: "0644"
+      notify: Restart Nagios
+
+  handlers:
+    - name: Restart Nagios
+      ansible.builtin.service:
+        name: nagios4
+        state: restarted
+

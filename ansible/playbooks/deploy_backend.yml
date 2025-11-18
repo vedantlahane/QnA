@@ -1,0 +1,92 @@
+---
+- name: Deploy Axon backend service
+  hosts: webserver
+  become: yes
+  vars:
+    repo_url: "https://github.com/vedantlahane/Axon.git"
+    project_root: "/home/{{ ansible_user }}/axon"
+    backend_path: "{{ project_root }}/backend"
+    venv_path: "{{ backend_path }}/.venv"
+    django_manage: "{{ venv_path }}/bin/python manage.py"
+    gunicorn_service_name: axon-gunicorn
+    gunicorn_bind: 0.0.0.0:8000
+    gunicorn_workers: 3
+    gunicorn_timeout: 60
+    app_packages:
+      - python3
+      - python3-pip
+      - python3-venv
+      - git
+
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install application packages
+      ansible.builtin.apt:
+        name: "{{ app_packages }}"
+        state: present
+
+  tasks:
+    - name: Clone or update repository
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ project_root }}"
+        version: main
+        update: yes
+        force: yes
+
+    - name: Create virtual environment
+      ansible.builtin.command: python3 -m venv "{{ venv_path }}"
+      args:
+        creates: "{{ venv_path }}/bin/activate"
+
+    - name: Install Python dependencies
+      ansible.builtin.pip:
+        requirements: "{{ backend_path }}/requirements.txt"
+        virtualenv: "{{ venv_path }}"
+        virtualenv_python: python3
+
+    - name: Ensure Gunicorn is installed in venv
+      ansible.builtin.pip:
+        name: gunicorn
+        virtualenv: "{{ venv_path }}"
+        virtualenv_python: python3
+
+    - name: Run database migrations
+      ansible.builtin.command: "{{ django_manage }} migrate"
+      args:
+        chdir: "{{ backend_path }}"
+
+    - name: Collect static files
+      ansible.builtin.command: "{{ django_manage }} collectstatic --noinput"
+      args:
+        chdir: "{{ backend_path }}"
+
+    - name: Install Gunicorn systemd unit
+      ansible.builtin.template:
+        src: axon-gunicorn.service.j2
+        dest: "/etc/systemd/system/{{ gunicorn_service_name }}.service"
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Gunicorn
+
+    - name: Ensure Gunicorn service is enabled
+      ansible.builtin.service:
+        name: "{{ gunicorn_service_name }}"
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Restart Gunicorn
+      ansible.builtin.service:
+        name: "{{ gunicorn_service_name }}"
+        state: restarted
+

@@ -1,0 +1,36 @@
+---
+- name: Prepare Axon backend host
+  hosts: webserver
+  become: yes
+  vars:
+    base_packages:
+      - python3
+      - python3-pip
+      - python3-venv
+      - git
+      - build-essential
+
+  tasks:
+    - name: Update apt packages
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install base packages
+      ansible.builtin.apt:
+        name: "{{ base_packages }}"
+        state: present
+
+    - name: Ensure project directories exist
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/axon"
+        state: directory
+        mode: "0755"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Allow Python venvs to create symlinks
+      ansible.builtin.command: update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+      changed_when: false
+      when: ansible_facts.os_family == "Debian"
+

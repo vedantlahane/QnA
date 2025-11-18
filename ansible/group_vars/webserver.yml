@@ -1,0 +1,8 @@
+---
+project_root: /home/ubuntu/axon
+backend_path: "{{ project_root }}/backend"
+venv_path: "{{ backend_path }}/.venv"
+gunicorn_service_name: axon-gunicorn
+gunicorn_bind: 0.0.0.0:8000
+gunicorn_workers: 3
+gunicorn_timeout: 60

@@ -17,11 +17,13 @@ from .views import (
     database_schema_view,
     execute_sql_query_view,
     sql_query_suggestions_view,
+    health_view,
 )
 
 app_name = "agent"
 
 urlpatterns = [
+    path("health/", health_view, name="health"),
     path("chat/", chat_view, name="chat"),
     path("conversations/", conversations_view, name="conversation-list"),
     path("conversations/<int:conversation_id>/", conversation_detail_view, name="conversation-detail"),

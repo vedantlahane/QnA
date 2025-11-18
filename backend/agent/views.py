@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
+from django.db import connections, transaction
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -14,6 +14,32 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from langchain_community.document_loaders import PyPDFLoader
+
+
+@require_http_methods(["GET"])
+def health_view(request: HttpRequest) -> JsonResponse:
+	db_status = "ok"
+	db_error: Optional[str] = None
+	try:
+		with connections["default"].cursor() as cursor:
+			cursor.execute("SELECT 1")
+	except Exception as exc:  # pragma: no cover - exact exception depends on backend drivers
+		db_status = "error"
+		db_error = str(exc)
+	status_code = 200 if db_status == "ok" else 503
+	return JsonResponse(
+		{
+			"status": "ok" if db_status == "ok" else "degraded",
+			"timestamp": timezone.now().isoformat(),
+			"checks": {
+				"database": {
+					"status": db_status,
+					"error": db_error,
+				}
+			},
+		},
+		status=status_code,
+	)
 
 from .graph.agent_backend import generate_response
 from .graph.pdf_tool import build_pdf_search_tool
