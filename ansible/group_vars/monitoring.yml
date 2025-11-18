@@ -1,8 +1,0 @@
----
-nagios_admin_user: ngaiosadmin
-nagios_admin_password: "ChangeMe123!"
-axon_backend_primary: "{{ (groups['webserver'] | default([])) | first | default('axon-web') }}"
-axon_backend_host: "{{ hostvars.get(axon_backend_primary, {}).inventory_hostname | default(axon_backend_primary) }}"
-axon_backend_address: "{{ hostvars.get(axon_backend_primary, {}).ansible_host | default(axon_backend_host) }}"
-axon_backend_port: 8000
-axon_backend_health_endpoint: /api/

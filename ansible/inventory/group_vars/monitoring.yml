@@ -1,0 +1,9 @@
+---
+nagios_admin_user: vedant
+nagios_admin_password: "9420"
+
+axon_backend_primary: "{{ (groups['webserver'] | default(['axon-backend'])) | first }}"
+axon_backend_host: "{{ axon_backend_primary }}"
+axon_backend_address: "{{ hostvars.get(axon_backend_host, {}).ansible_host | default(axon_backend_host) }}"
+axon_backend_port: 8000
+axon_backend_health_endpoint: /api/

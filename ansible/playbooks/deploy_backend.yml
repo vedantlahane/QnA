@@ -67,7 +67,7 @@
 
     - name: Install Gunicorn systemd unit
       ansible.builtin.template:
-        src: axon-gunicorn.service.j2
+        src: ../templates/axon-gunicorn.service.j2
         dest: "/etc/systemd/system/{{ gunicorn_service_name }}.service"
         mode: "0644"
       notify:

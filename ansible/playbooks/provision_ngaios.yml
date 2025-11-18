@@ -12,6 +12,7 @@
       - nagios4
       - nagios-plugins-contrib
       - monitoring-plugins-basic
+      - python3-passlib
 
   pre_tasks:
     - name: Update apt cache
@@ -38,7 +39,7 @@
         path: /etc/nagios4/htpasswd.users
         name: "{{ nagios_admin_user }}"
         password: "{{ nagios_admin_password }}"
-        crypt_scheme: md5
+        crypt_scheme: bcrypt
 
     - name: Ensure Apache service is enabled
       ansible.builtin.service:
@@ -54,7 +55,7 @@
     
     - name: Install Axon backend monitoring config
       ansible.builtin.template:
-        src: nagios-axon-backend.cfg.j2
+        src: ../templates/nagios-axon-backend.cfg.j2
         dest: /etc/nagios4/conf.d/axon-backend.cfg
         mode: "0644"
       notify: Restart Nagios
