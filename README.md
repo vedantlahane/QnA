@@ -154,10 +154,9 @@ ansible/
 └── group_vars/
 ```
 
-1. (Optional) Provision EC2 hosts via the Terraform stack in `infra/terraform` (see that folder's README). Copy the outputted inventory snippet when it finishes.
-2. Update `ansible/inventory/hosts.ini` with your SSH targets for both the backend (`[webserver]`) and monitoring box (`[monitoring]`).
-3. Adjust any variables in `ansible/group_vars/` as needed (paths, Gunicorn tuning, monitoring metadata).
-4. Run the desired playbook:
+1. Update `ansible/inventory/hosts.ini` with your SSH targets for both the backend (`[webserver]`) and monitoring box (`[monitoring]`).
+2. Adjust any variables in `ansible/group_vars/` as needed (paths, Gunicorn tuning, monitoring metadata).
+3. Run the desired playbook:
 
 ```bash
 ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/setup_backend.yml
@@ -166,16 +165,6 @@ ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/provision_ngai
 ```
 
 > `deploy_backend` now drops a managed Gunicorn systemd service (`axon-gunicorn`) instead of the ad-hoc `runserver`. The Ngaios playbook provisions a dedicated monitoring host plus service checks that watch the Gunicorn port and HTTP health endpoint.
-
-### Terraform stack
-
-Infrastructure as code lives in `infra/terraform` if you want Terraform to spin up the baseline AWS networking + EC2 hosts. It creates:
-
-- A dedicated VPC, public subnet, IGW, and routing.
-- Security groups for the backend (Gunicorn) and monitoring (Nagios) nodes.
-- An uploaded SSH key pair plus two Ubuntu instances sized for their workloads.
-
-After `terraform apply`, copy the emitted inventory snippet into `ansible/inventory/hosts.ini`, then run the Ansible playbooks above.
 
 ---
 

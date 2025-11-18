@@ -23,10 +23,9 @@ ansible/
 
 ## Usage
 
-1. (Optional) If you're starting from scratch, run the Terraform stack under `infra/terraform` to create the EC2 instances and copy the `inventory_snippet` output here.
-2. Update `inventory/hosts.ini` with the correct hostnames/IPs and SSH key paths.
-3. Adjust group variables if you need different paths, credentials, or settings.
-4. Run the required playbook:
+1. Update `inventory/hosts.ini` with the correct hostnames/IPs and SSH key paths.
+2. Adjust group variables if you need different paths, credentials, or settings.
+3. Run the required playbook:
 
 ```bash
 ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/setup_backend.yml
