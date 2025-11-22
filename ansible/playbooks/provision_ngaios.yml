@@ -172,6 +172,12 @@
         creates: "/etc/apache2/mods-enabled/{{ item }}.load"
       when: ansible_facts.os_family == 'Debian'
 
+    - name: Disable conflicting Nagios alias configuration if exists
+      ansible.builtin.command: a2disconf axon-nagios-alias
+      ignore_errors: yes
+      when: ansible_facts.os_family == 'Debian'
+      notify: Reload Apache
+
     - name: Configure Nagios admin credentials
       ansible.builtin.htpasswd:
         path: "{{ nagios_home }}/etc/htpasswd.users"
@@ -204,4 +210,10 @@
       ansible.builtin.service:
         name: nagios
         state: restarted
+
+    - name: Reload Apache
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
+      when: ansible_facts.os_family == 'Debian'
 
