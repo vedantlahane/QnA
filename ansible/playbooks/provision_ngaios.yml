@@ -5,9 +5,9 @@
   vars:
     nagios_admin_user: vedant
     nagios_admin_password: "9420"
-  nagios_version: "4.5.3"
-  nagios_plugins_version: "2.4.6"
-  nagios_service_name: nagios
+    nagios_version: "4.5.3"
+    nagios_plugins_version: "2.4.6"
+    nagios_service_name: nagios
     nagios_user: nagios
     nagios_group: nagios
     nagios_home: /usr/local/nagios
