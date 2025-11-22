@@ -221,6 +221,14 @@
         mode: "0644"
       notify: Restart Nagios
 
+    - name: Include Axon backend config in main Nagios configuration
+      ansible.builtin.lineinfile:
+        path: "{{ nagios_home }}/etc/nagios.cfg"
+        line: "cfg_file={{ nagios_home }}/etc/objects/axon-backend.cfg"
+        insertafter: "cfg_file={{ nagios_home }}/etc/objects/localhost.cfg"
+        state: present
+      notify: Restart Nagios
+
   handlers:
     - name: Restart Nagios
       ansible.builtin.service:
