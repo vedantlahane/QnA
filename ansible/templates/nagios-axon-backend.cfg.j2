@@ -18,7 +18,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     Gunicorn HTTP Health
-    check_command           check_http!-I {{ axon_backend_address }} -p {{ axon_backend_port }} -u {{ axon_backend_health_endpoint }} -w 5 -c 10
+    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u {{ axon_backend_health_endpoint }} -w 5 -c 10
     check_interval          1
     retry_interval          1
 }
