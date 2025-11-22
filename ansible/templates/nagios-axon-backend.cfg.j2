@@ -32,7 +32,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     HTTP Response Time
-    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u {{ axon_backend_health_endpoint }} -w 2000 -c 5000
+    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u {{ axon_backend_health_endpoint }} -w 2 -c 5
     check_interval          2
     retry_interval          1
 }
@@ -40,8 +40,26 @@ define service {
 define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
+    service_description     API Chat Endpoint
+    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u /api/chat/ -e "HTTP/1.1 405" -w 5 -c 10
+    check_interval          5
+    retry_interval          2
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
+    service_description     API Auth Endpoint
+    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u /api/auth/me/ -e "HTTP/1.1 401" -w 5 -c 10
+    check_interval          5
+    retry_interval          2
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
     service_description     Disk Space
-    check_command           check_ssh!-l ubuntu -C "df -h / | awk 'NR==2 {print \$5}' | sed 's/%//'"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "df -h / | awk 'NR==2 {gsub(/%/,\"\"); if (\$5 > 90) exit 2; else if (\$5 > 80) exit 1; else {print \"Disk usage: \"\$5\"%\"; exit 0}}'"
     check_interval          5
     retry_interval          2
 }
@@ -50,7 +68,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     Memory Usage
-    check_command           check_ssh!-l ubuntu -C "free | awk 'NR==2 {printf \"%d\", (\$3/\$2)*100}'"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "free | awk 'NR==2 {used=\$3; total=\$2; pct=(used/total)*100; if (pct > 90) exit 2; else if (pct > 80) exit 1; else {printf \"Memory usage: %.1f%%\", pct; exit 0}}'"
     check_interval          2
     retry_interval          1
 }
@@ -59,7 +77,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     CPU Load
-    check_command           check_ssh!-l ubuntu -C "uptime | awk -F'load average:' '{print \$2}' | awk '{print \$1}' | sed 's/,//'"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "load=\$(uptime | awk -F'load average:' '{print \$2}' | awk '{print \$1}' | sed 's/,//'); if (( \$(echo \"\$load > 4\" | bc -l) )); then exit 2; elif (( \$(echo \"\$load > 2\" | bc -l) )); then exit 1; else echo \"Load average: \$load\"; exit 0; fi"
     check_interval          2
     retry_interval          1
 }
@@ -68,7 +86,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     Gunicorn Process
-    check_command           check_ssh!-l ubuntu -C "pgrep -f gunicorn | wc -l"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "count=\$(pgrep -f gunicorn | wc -l); if [ \$count -eq 0 ]; then echo \"No Gunicorn processes\"; exit 2; elif [ \$count -lt 2 ]; then echo \"Only \$count Gunicorn process\"; exit 1; else echo \"Gunicorn processes: \$count\"; exit 0; fi"
     check_interval          1
     retry_interval          1
 }
@@ -77,7 +95,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     SQLite Database
-    check_command           check_ssh!-l ubuntu -C "test -f /home/ubuntu/axon/backend/db.sqlite3 && echo 'OK' || echo 'MISSING'"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "if [ -f /home/ubuntu/axon/backend/db.sqlite3 ]; then size=\$(du -h /home/ubuntu/axon/backend/db.sqlite3 | cut -f1); echo \"Database exists: \$size\"; exit 0; else echo \"Database file missing\"; exit 2; fi"
     check_interval          5
     retry_interval          2
 }
