@@ -37,6 +37,7 @@ ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/provision_ngai
 
 - `deploy_backend.yml` now provisions Gunicorn behind a managed systemd unit (`axon-gunicorn`). Tweak bind address, worker count, or timeout via `inventory/group_vars/webserver.yml`.
 - The unit loads environment variables from `/etc/axon/axon.env` and also falls back to `DJANGO_SETTINGS_MODULE=backend.settings`. Add other environment variables to `inventory/group_vars/webserver.yml` under `backend_env` or create `/etc/axon/axon.env` on the target host.
+	- Note: If you leave `DATABASE_URL` empty and run with the default SQLite database, it is recommended to set `gunicorn_workers` to 1 to avoid SQLite "database is locked" errors. Alternatively, set `DATABASE_URL` to a managed database like an RDS/Postgres instance for production.
 
 ### Monitoring notes
 

@@ -67,11 +67,21 @@
       ansible.builtin.command: "{{ django_manage }} migrate"
       args:
         chdir: "{{ backend_path }}"
+      become_user: "{{ ansible_user }}"
 
     - name: Collect static files
       ansible.builtin.command: "{{ django_manage }} collectstatic --noinput"
       args:
         chdir: "{{ backend_path }}"
+      become_user: "{{ ansible_user }}"
+
+    - name: Ensure DB file owned by app user (if using SQLite)
+      ansible.builtin.file:
+        path: "{{ backend_path }}/db.sqlite3"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+      when: ansible_facts.os_family is defined
 
     - name: Install Gunicorn systemd unit
       ansible.builtin.template:
@@ -104,6 +114,11 @@
         name: "{{ gunicorn_service_name }}"
         state: started
         enabled: yes
+
+    - name: Reduce Gunicorn workers if using file-backed SQLite database
+      ansible.builtin.set_fact:
+        gunicorn_workers: 1
+      when: (backend_env.DATABASE_URL | default('') == '') and (gunicorn_workers | int > 1)
 
     - name: Wait for Gunicorn to start and respond on localhost
       ansible.builtin.uri:

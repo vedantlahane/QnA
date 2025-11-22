@@ -9,6 +9,10 @@ from django.core.files.uploadedfile import UploadedFile
 from django.db import connections, transaction
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.db import OperationalError
+import logging
+
+logger = logging.getLogger(__name__)
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -663,7 +667,13 @@ def execute_sql_query_view(request: HttpRequest) -> JsonResponse:
 		if limit > 1000:
 			limit = 1000
 
-	connection_details = _resolve_user_database_details(request.user)
+		connection_details = _resolve_user_database_details(request.user)
+		# Log the chosen connection identifier (not the full credentials) for debugging
+		try:
+			conn_id_for_logs = connection_details.identifier if connection_details else "environment/none"
+		except Exception:
+			conn_id_for_logs = "unknown"
+		logger.debug("Chat handling using connection: %s", conn_id_for_logs)
 	if connection_details is None:
 		connection_details = get_environment_connection()
 	if connection_details is None:
@@ -991,57 +1001,66 @@ def chat_view(request: HttpRequest) -> JsonResponse:
 	explicit_title = payload.get("title") if isinstance(payload, dict) else None
 	document_ids = _normalise_document_ids(payload.get("document_ids"))
 
-	if conversation_id:
-		conversation = get_object_or_404(Conversation, pk=conversation_id, user=request.user)
-	else:
-		conversation = Conversation.objects.create(user=request.user)
+	try:
+		if conversation_id:
+			conversation = get_object_or_404(Conversation, pk=conversation_id, user=request.user)
+		else:
+			conversation = Conversation.objects.create(user=request.user)
 
-	previous_qs = Message.objects.filter(conversation=conversation).order_by("created_at")
-	previous_messages = [{"role": msg.role, "content": msg.content} for msg in previous_qs]
+		previous_qs = Message.objects.filter(conversation=conversation).order_by("created_at")
+		previous_messages = [{"role": msg.role, "content": msg.content} for msg in previous_qs]
 
-	selected_documents = (
-		list(UploadedDocument.objects.filter(pk__in=document_ids, user=request.user))
-		if document_ids
-		else []
-	)
-	context_documents: List[UploadedDocument] = list(selected_documents)
-
-	if not context_documents:
-		attached_document_ids = (
-			MessageAttachment.objects.filter(message__conversation=conversation)
-			.values_list("document_id", flat=True)
-			.distinct()
+		selected_documents = (
+			list(UploadedDocument.objects.filter(pk__in=document_ids, user=request.user))
+			if document_ids
+			else []
 		)
-		if attached_document_ids:
-			context_documents = list(
-				UploadedDocument.objects.filter(pk__in=attached_document_ids, user=request.user)
+		context_documents: List[UploadedDocument] = list(selected_documents)
+
+		if not context_documents:
+			attached_document_ids = (
+				MessageAttachment.objects.filter(message__conversation=conversation)
+				.values_list("document_id", flat=True)
+				.distinct()
 			)
+			if attached_document_ids:
+				context_documents = list(
+					UploadedDocument.objects.filter(pk__in=attached_document_ids, user=request.user)
+				)
 
-	user_message = Message.objects.create(conversation=conversation, role="user", content=user_content)
-	if selected_documents:
-		_attach_documents_to_message(user_message, selected_documents)
+		user_message = Message.objects.create(conversation=conversation, role="user", content=user_content)
+		if selected_documents:
+			_attach_documents_to_message(user_message, selected_documents)
 
-	document_context = _gather_document_context(context_documents, user_content)
+		document_context = _gather_document_context(context_documents, user_content)
 
-	external_context: Optional[str] = None
-	if (not document_context) and _should_query_tavily(user_content):
+		external_context: Optional[str] = None
+		if (not document_context) and _should_query_tavily(user_content):
+			try:
+				searcher = get_tavily_search_tool()
+				results = searcher.run(user_content)
+				external_context = _format_tavily_results(results)
+			except Exception as exc:  # pragma: no cover - avoid hard failures when Tavily unavailable
+				print(f"Warning: Tavily search failed ({exc})")
+
+		connection_details = _resolve_user_database_details(request.user)
 		try:
-			searcher = get_tavily_search_tool()
-			results = searcher.run(user_content)
-			external_context = _format_tavily_results(results)
-		except Exception as exc:  # pragma: no cover - avoid hard failures when Tavily unavailable
-			print(f"Warning: Tavily search failed ({exc})")
+			with use_sql_connection(connection_details):
+				reply = generate_response(
+					user_content,
+					previous_messages,
+					document_context=document_context,
+					external_context=external_context,
+				)
+		except OperationalError as db_exc:
+			# Log details to help debugging; return 500 with JSON details masked as required.
+			logger.exception("Database error while rendering a chat response")
+			return JsonResponse({"error": "Database error. Please check server logs."}, status=500)
 
-	connection_details = _resolve_user_database_details(request.user)
-	with use_sql_connection(connection_details):
-		reply = generate_response(
-			user_content,
-			previous_messages,
-			document_context=document_context,
-			external_context=external_context,
-		)
-
-	Message.objects.create(conversation=conversation, role="assistant", content=reply)
+		Message.objects.create(conversation=conversation, role="assistant", content=reply)
+	except OperationalError as top_db_exc:
+		logger.exception("OperationalError while handling chat_view")
+		return JsonResponse({"error": "Database OperationalError. Contact admin."}, status=500)
 
 	_apply_conversation_metadata(conversation, explicit_title)
 
