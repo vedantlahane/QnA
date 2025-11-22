@@ -185,6 +185,22 @@
         password: "{{ nagios_admin_password }}"
         crypt_scheme: bcrypt
 
+    - name: Configure CGI user permissions
+      ansible.builtin.lineinfile:
+        path: "{{ nagios_home }}/etc/cgi.cfg"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        backrefs: yes
+      loop:
+        - { regexp: '^authorized_for_system_information=(.*)$', line: 'authorized_for_system_information=\1,{{ nagios_admin_user }}' }
+        - { regexp: '^authorized_for_configuration_information=(.*)$', line: 'authorized_for_configuration_information=\1,{{ nagios_admin_user }}' }
+        - { regexp: '^authorized_for_system_commands=(.*)$', line: 'authorized_for_system_commands=\1,{{ nagios_admin_user }}' }
+        - { regexp: '^authorized_for_all_services=(.*)$', line: 'authorized_for_all_services=\1,{{ nagios_admin_user }}' }
+        - { regexp: '^authorized_for_all_hosts=(.*)$', line: 'authorized_for_all_hosts=\1,{{ nagios_admin_user }}' }
+        - { regexp: '^authorized_for_all_service_commands=(.*)$', line: 'authorized_for_all_service_commands=\1,{{ nagios_admin_user }}' }
+        - { regexp: '^authorized_for_all_host_commands=(.*)$', line: 'authorized_for_all_host_commands=\1,{{ nagios_admin_user }}' }
+      notify: Restart Nagios
+
     - name: Ensure Apache service is enabled (Debian family)
       ansible.builtin.service:
         name: apache2
