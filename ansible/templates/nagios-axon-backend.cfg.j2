@@ -1,8 +1,13 @@
 define host {
-    use             linux-server
-    host_name       {{ axon_backend_host }}
-    alias           Axon Backend Server
-    address         {{ axon_backend_address }}
+    use                     linux-server
+    host_name               {{ axon_backend_host }}
+    alias                   Axon Backend Server
+    address                 {{ axon_backend_address }}
+    check_command           check_tcp!{{ axon_backend_port }}
+    max_check_attempts      3
+    check_interval          1
+    retry_interval          1
+    notification_interval   30
 }
 
 define service {
