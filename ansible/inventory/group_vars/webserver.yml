@@ -4,10 +4,19 @@ backend_path: "{{ project_root }}/backend"
 venv_path: "{{ backend_path }}/.venv"
 gunicorn_service_name: axon-gunicorn
 gunicorn_bind: 0.0.0.0:8000
-gunicorn_workers: 3
+gunicorn_workers: 1  # Set to 1 for SQLite to avoid database locking
 gunicorn_timeout: 60
 backend_env:
   DJANGO_SETTINGS_MODULE: backend.settings
   DATABASE_URL: ''
-  DJANGO_ALLOWED_HOSTS: 'localhost,127.0.0.1'
-backend_health_endpoint: /api/
+  DJANGO_ALLOWED_HOSTS: 'localhost,127.0.0.1,13.235.83.16,ec2-13-235-83-16.ap-south-1.compute.amazonaws.com'
+  DJANGO_DEBUG: 'False'  # Set to False in production for security
+  DJANGO_SECRET_KEY: "{{ django_secret_key }}"  # Stored in vault.yml (encrypted)
+  FRONTEND_ORIGINS: 'http://localhost:5173,http://localhost:5174,https://axoncanvas.vercel.app,https://axon-bw73n82h4-vedantlahanes-projects.vercel.app,https://axon-vedantlahanes-projects.vercel.app,https://axon-git-main-vedantlahanes-projects.vercel.app'
+  # AI API Keys - REQUIRED for chat functionality (stored in vault.yml encrypted file)
+  OPENAI_API_KEY: "{{ openai_api_key }}"  # Get from https://platform.openai.com/api-keys
+  TAVILY_API_KEY: "{{ tavily_api_key }}"  # Get from https://app.tavily.com/ (optional, for web search)
+  LANGCHAIN_API_KEY: "{{ langchain_api_key | default('') }}"  # Get from https://smith.langchain.com/ (optional, for tracing)
+  LANGCHAIN_TRACING_V2: 'false'  # Set to 'true' to enable LangSmith tracing
+  LANGCHAIN_PROJECT: 'axon'
+backend_health_endpoint: /api/health/

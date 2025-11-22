@@ -10,4 +10,9 @@ __pycache__/
 .DS_Store
 *.log
 vector_stores/
+
+# Ansible secrets (unencrypted vault file should never be committed)
+# Only commit the encrypted version: vault.yml after running ansible-vault encrypt
+ansible/inventory/group_vars/vault.yml.unencrypted
+ansible/inventory/group_vars/.vault_password
 ```

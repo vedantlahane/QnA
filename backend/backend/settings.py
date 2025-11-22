@@ -36,10 +36,10 @@ def _env_list(name: str, default: list[str]) -> list[str]:
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-i^xxm##v@nuq!hzfuxejtj$kqtwnydutg7kg%8!-%*cl+b86a%'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-i^xxm##v@nuq!hzfuxejtj$kqtwnydutg7kg%8!-%*cl+b86a%')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = _env_list(
     'DJANGO_ALLOWED_HOSTS',

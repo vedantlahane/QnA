@@ -10,7 +10,7 @@
     django_manage: "{{ venv_path }}/bin/python manage.py"
     gunicorn_service_name: axon-gunicorn
     gunicorn_bind: 0.0.0.0:8000
-    gunicorn_workers: 3
+    gunicorn_workers: 1  # Set to 1 for SQLite to avoid database locking issues
     gunicorn_timeout: 60
     app_packages:
       - python3
@@ -75,13 +75,21 @@
         chdir: "{{ backend_path }}"
       become_user: "{{ ansible_user }}"
 
+    - name: Ensure backend directory owned by app user
+      ansible.builtin.file:
+        path: "{{ backend_path }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: yes
+        state: directory
+
     - name: Ensure DB file owned by app user (if using SQLite)
       ansible.builtin.file:
         path: "{{ backend_path }}/db.sqlite3"
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: "0644"
-      when: ansible_facts.os_family is defined
+      ignore_errors: yes
 
     - name: Install Gunicorn systemd unit
       ansible.builtin.template:
@@ -114,11 +122,6 @@
         name: "{{ gunicorn_service_name }}"
         state: started
         enabled: yes
-
-    - name: Reduce Gunicorn workers if using file-backed SQLite database
-      ansible.builtin.set_fact:
-        gunicorn_workers: 1
-      when: (backend_env.DATABASE_URL | default('') == '') and (gunicorn_workers | int > 1)
 
     - name: Wait for Gunicorn to start and respond on localhost
       ansible.builtin.uri:
