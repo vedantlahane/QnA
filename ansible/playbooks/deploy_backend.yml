@@ -105,6 +105,17 @@
         state: started
         enabled: yes
 
+    - name: Wait for Gunicorn to start and respond on localhost
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:8000{{ backend_health_endpoint | default('/api/') }}"
+        method: GET
+        status_code: 200
+        timeout: 5
+      register: app_health
+      retries: 5
+      delay: 3
+      until: app_health.status == 200
+
   handlers:
     - name: Reload systemd
       ansible.builtin.systemd:

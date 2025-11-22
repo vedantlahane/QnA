@@ -60,6 +60,17 @@
         state: present
       when: ansible_facts.os_family == 'Debian'
 
+    - name: Ensure build packages list is present for RedHat families
+      ansible.builtin.set_fact:
+        build_packages: ['gcc','make','gd-devel','openssl-devel','perl','wget','unzip']
+      when: ansible_facts.os_family in ['RedHat', 'Amazon']
+
+    - name: Install build dependencies (RedHat/Amazon family)
+      ansible.builtin.yum:
+        name: "{{ build_packages }}"
+        state: present
+      when: ansible_facts.os_family in ['RedHat','Amazon']
+
     - name: Create nagios group
       ansible.builtin.group:
         name: "{{ nagios_group }}"
