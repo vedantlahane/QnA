@@ -6,3 +6,7 @@ gunicorn_service_name: axon-gunicorn
 gunicorn_bind: 0.0.0.0:8000
 gunicorn_workers: 3
 gunicorn_timeout: 60
+backend_env:
+	DJANGO_SETTINGS_MODULE: backend.settings
+	DATABASE_URL: ''
+	DJANGO_ALLOWED_HOSTS: 'localhost,127.0.0.1'

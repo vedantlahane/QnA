@@ -36,10 +36,10 @@ ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/provision_ngai
 ### Backend deployment notes
 
 - `deploy_backend.yml` now provisions Gunicorn behind a managed systemd unit (`axon-gunicorn`). Tweak bind address, worker count, or timeout via `inventory/group_vars/webserver.yml`.
-- The unit simply exports `DJANGO_SETTINGS_MODULE=backend.settings`. If you rely on additional environment variables, point the service to an env file or extend the template under `templates/`.
+- The unit loads environment variables from `/etc/axon/axon.env` and also falls back to `DJANGO_SETTINGS_MODULE=backend.settings`. Add other environment variables to `inventory/group_vars/webserver.yml` under `backend_env` or create `/etc/axon/axon.env` on the target host.
 
 ### Monitoring notes
 
 - `provision_ngaios.yml` ships a ready-made Nagios host + service definition that checks both the Gunicorn TCP port and a configurable HTTP endpoint.
 - Customize the monitored host/port/path in `inventory/group_vars/monitoring.yml` (defaults auto-derive from the first `[webserver]` host in the inventory).
-- The playbook installs `python3-passlib` so the `htpasswd` step can hash credentials with bcrypt; if you trim packages, keep that dependency.
+- The playbook has been updated to be more OS-aware: Debian (apt) package tasks run only on Debian-family hosts. You can override `nagios_version`, `nagios_plugins_version`, and `nagios_service_name` in `inventory/group_vars/monitoring.yml` to change which Nagios release is used.

@@ -7,6 +7,7 @@ Type=simple
 User={{ ansible_user }}
 Group={{ ansible_user }}
 WorkingDirectory={{ backend_path }}
+EnvironmentFile=-/etc/axon/axon.env
 Environment="DJANGO_SETTINGS_MODULE=backend.settings"
 ExecStart={{ venv_path }}/bin/gunicorn backend.wsgi:application \
   --bind {{ gunicorn_bind }} \

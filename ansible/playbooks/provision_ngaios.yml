@@ -1,68 +1,196 @@
 ---
-- name: Provision Ngaios monitoring host
+- name: Provision Nagios monitoring host
   hosts: monitoring
   become: yes
   vars:
-    nagios_admin_user: ngaiosadmin
-    nagios_admin_password: "ChangeMe123!"
-    nagios_packages:
+    nagios_admin_user: vedant
+    nagios_admin_password: "9420"
+  nagios_version: "4.5.3"
+  nagios_plugins_version: "2.4.6"
+  nagios_service_name: nagios
+    nagios_user: nagios
+    nagios_group: nagios
+    nagios_home: /usr/local/nagios
+    build_packages:
+      - build-essential
+      - libgd-dev
+      - openssl
+      - libssl-dev
       - apache2
       - php
       - libapache2-mod-php
-      - nagios4
-      - nagios-plugins-contrib
-      - monitoring-plugins-basic
       - python3-passlib
+      - wget
+      - unzip
+      - libperl-dev
+      - libpq-dev
+      - libldap2-dev
 
   pre_tasks:
-    - name: Update apt cache
+    - name: Update apt cache (Debian family)
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
+      when: ansible_facts.os_family == 'Debian'
 
   tasks:
-    - name: Install Ngaios packages
+    - name: Remove old Nagios packages (Debian family; avoid package removal on non-Debian systems)
       ansible.builtin.apt:
-        name: "{{ nagios_packages }}"
+        name:
+          - nagios4
+          - nagios-plugins-contrib
+          - monitoring-plugins-basic
+        state: absent
+        purge: yes
+      when: ansible_facts.os_family == 'Debian'
+
+    - name: Stop Nagios service if running
+      ansible.builtin.service:
+        name: "{{ nagios_service_name }}"
+        state: stopped
+      ignore_errors: yes
+
+    - name: Kill any remaining Nagios processes
+      ansible.builtin.command: pkill -f nagios
+      ignore_errors: yes
+
+    - name: Install build dependencies (Debian family)
+      ansible.builtin.apt:
+        name: "{{ build_packages }}"
+        state: present
+      when: ansible_facts.os_family == 'Debian'
+
+    - name: Create nagios group
+      ansible.builtin.group:
+        name: "{{ nagios_group }}"
         state: present
 
-    - name: Enable required Apache modules
+    - name: Create nagios user
+      ansible.builtin.user:
+        name: "{{ nagios_user }}"
+        group: "{{ nagios_group }}"
+        system: yes
+        shell: /bin/bash
+        home: "{{ nagios_home }}"
+        create_home: no
+
+    - name: Download Nagios Core
+      ansible.builtin.get_url:
+        url: "https://github.com/NagiosEnterprises/nagioscore/releases/download/nagios-{{ nagios_version }}/nagios-{{ nagios_version }}.tar.gz"
+        dest: /tmp/nagios-{{ nagios_version }}.tar.gz
+
+    - name: Extract Nagios Core
+      ansible.builtin.unarchive:
+        src: /tmp/nagios-{{ nagios_version }}.tar.gz
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Configure Nagios Core
+      ansible.builtin.command:
+        cmd: ./configure --with-httpd-conf=/etc/apache2/sites-enabled --with-command-group={{ nagios_group }}
+        chdir: /tmp/nagios-{{ nagios_version }}
+        creates: /tmp/nagios-{{ nagios_version }}/Makefile
+
+    - name: Make all
+      ansible.builtin.make:
+        chdir: /tmp/nagios-{{ nagios_version }}
+        target: all
+
+    - name: Make install
+      ansible.builtin.make:
+        chdir: /tmp/nagios-{{ nagios_version }}
+        target: install
+
+    - name: Make install-init
+      ansible.builtin.make:
+        chdir: /tmp/nagios-{{ nagios_version }}
+        target: install-init
+
+    - name: Make install-daemoninit
+      ansible.builtin.make:
+        chdir: /tmp/nagios-{{ nagios_version }}
+        target: install-daemoninit
+
+    - name: Make install-config
+      ansible.builtin.make:
+        chdir: /tmp/nagios-{{ nagios_version }}
+        target: install-config
+
+    - name: Make install-commandmode
+      ansible.builtin.make:
+        chdir: /tmp/nagios-{{ nagios_version }}
+        target: install-commandmode
+
+    - name: Make install-webconf
+      ansible.builtin.make:
+        chdir: /tmp/nagios-{{ nagios_version }}
+        target: install-webconf
+
+    - name: Download Nagios Plugins
+      ansible.builtin.get_url:
+        url: "https://github.com/nagios-plugins/nagios-plugins/releases/download/release-{{ nagios_plugins_version }}/nagios-plugins-{{ nagios_plugins_version }}.tar.gz"
+        dest: /tmp/nagios-plugins-{{ nagios_plugins_version }}.tar.gz
+
+    - name: Extract Nagios Plugins
+      ansible.builtin.unarchive:
+        src: /tmp/nagios-plugins-{{ nagios_plugins_version }}.tar.gz
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Configure Nagios Plugins
+      ansible.builtin.command:
+        cmd: ./configure --with-nagios-user={{ nagios_user }} --with-nagios-group={{ nagios_group }}
+        chdir: /tmp/nagios-plugins-{{ nagios_plugins_version }}
+        creates: /tmp/nagios-plugins-{{ nagios_plugins_version }}/Makefile
+
+    - name: Make Nagios Plugins
+      ansible.builtin.make:
+        chdir: /tmp/nagios-plugins-{{ nagios_plugins_version }}
+
+    - name: Make install Nagios Plugins
+      ansible.builtin.make:
+        chdir: /tmp/nagios-plugins-{{ nagios_plugins_version }}
+        target: install
+
+    - name: Enable required Apache modules (Debian family)
       ansible.builtin.command: "a2enmod {{ item }}"
       loop:
         - cgi
         - rewrite
       args:
         creates: "/etc/apache2/mods-enabled/{{ item }}.load"
+      when: ansible_facts.os_family == 'Debian'
 
-    - name: Configure Ngaios admin credentials
+    - name: Configure Nagios admin credentials
       ansible.builtin.htpasswd:
-        path: /etc/nagios4/htpasswd.users
+        path: "{{ nagios_home }}/etc/htpasswd.users"
         name: "{{ nagios_admin_user }}"
         password: "{{ nagios_admin_password }}"
         crypt_scheme: bcrypt
 
-    - name: Ensure Apache service is enabled
+    - name: Ensure Apache service is enabled (Debian family)
       ansible.builtin.service:
         name: apache2
         state: restarted
         enabled: yes
+      when: ansible_facts.os_family == 'Debian'
 
     - name: Ensure Nagios service is enabled
       ansible.builtin.service:
-        name: nagios4
+        name: "{{ nagios_service_name }}"
         state: restarted
         enabled: yes
-    
+
     - name: Install Axon backend monitoring config
       ansible.builtin.template:
         src: ../templates/nagios-axon-backend.cfg.j2
-        dest: /etc/nagios4/conf.d/axon-backend.cfg
+        dest: "{{ nagios_home }}/etc/objects/axon-backend.cfg"
         mode: "0644"
       notify: Restart Nagios
 
   handlers:
     - name: Restart Nagios
       ansible.builtin.service:
-        name: nagios4
+        name: nagios
         state: restarted
 

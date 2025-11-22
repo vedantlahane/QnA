@@ -1,6 +1,9 @@
 ---
 nagios_admin_user: vedant
 nagios_admin_password: "9420"
+nagios_version: "4.5.3"
+nagios_plugins_version: "2.4.6"
+nagios_service_name: nagios
 
 axon_backend_primary: "{{ (groups['webserver'] | default(['axon-backend'])) | first }}"
 axon_backend_host: "{{ axon_backend_primary }}"

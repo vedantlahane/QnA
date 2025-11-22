@@ -19,13 +19,21 @@
       - git
 
   pre_tasks:
-    - name: Update apt cache
-      ansible.builtin.apt:
-        update_cache: yes
-        cache_valid_time: 3600
+    - name: Update package cache (Debian/Yum if needed)
+      block:
+        - name: Update apt cache
+          ansible.builtin.apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          when: ansible_facts.os_family == 'Debian'
 
-    - name: Install application packages
-      ansible.builtin.apt:
+        - name: Update yum cache
+          ansible.builtin.yum:
+            update_cache: yes
+          when: ansible_facts.os_family in ['RedHat', 'Amazon']
+
+    - name: Install application packages (cross-platform)
+      ansible.builtin.package:
         name: "{{ app_packages }}"
         state: present
 
@@ -70,6 +78,23 @@
         src: ../templates/axon-gunicorn.service.j2
         dest: "/etc/systemd/system/{{ gunicorn_service_name }}.service"
         mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Gunicorn
+
+    - name: Ensure /etc/axon dir exists for environment file
+      ansible.builtin.file:
+        path: "/etc/axon"
+        state: directory
+        mode: "0755"
+
+    - name: Install backend environment file
+      ansible.builtin.template:
+        src: ../templates/axon.env.j2
+        dest: /etc/axon/axon.env
+        mode: "0640"
+        owner: root
+        group: root
       notify:
         - Reload systemd
         - Restart Gunicorn

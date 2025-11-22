@@ -11,13 +11,21 @@
       - build-essential
 
   tasks:
-    - name: Update apt packages
-      ansible.builtin.apt:
-        update_cache: yes
-        cache_valid_time: 3600
+    - name: Update package cache (Debian/Yum)
+      block:
+        - name: Update apt cache
+          ansible.builtin.apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          when: ansible_facts.os_family == 'Debian'
 
-    - name: Install base packages
-      ansible.builtin.apt:
+        - name: Update yum cache
+          ansible.builtin.yum:
+            update_cache: yes
+          when: ansible_facts.os_family in ['RedHat', 'Amazon']
+
+    - name: Install base packages using the system package module
+      ansible.builtin.package:
         name: "{{ base_packages }}"
         state: present
 
