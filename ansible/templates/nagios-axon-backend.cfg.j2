@@ -50,7 +50,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     API Auth Endpoint
-    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u /api/auth/me/ -e "HTTP/1.1 401" -w 5 -c 10
+    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u /api/auth/me/ -w 5 -c 10
     check_interval          5
     retry_interval          2
 }
@@ -59,7 +59,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     Disk Space
-    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "df -h / | awk 'NR==2 {gsub(/%/,\"\"); if (\$5 > 90) exit 2; else if (\$5 > 80) exit 1; else {print \"Disk usage: \"\$5\"%\"; exit 0}}'"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "usage=\$(df -h / | tail -1 | awk '{print \$5}' | sed 's/%//'); echo \"Disk usage: \${usage}%\"; if [ \$usage -gt 90 ]; then exit 2; elif [ \$usage -gt 80 ]; then exit 1; else exit 0; fi"
     check_interval          5
     retry_interval          2
 }
@@ -68,7 +68,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     Memory Usage
-    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "free | awk 'NR==2 {used=\$3; total=\$2; pct=(used/total)*100; if (pct > 90) exit 2; else if (pct > 80) exit 1; else {printf \"Memory usage: %.1f%%\", pct; exit 0}}'"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "used=\$(free | grep Mem | awk '{print \$3}'); total=\$(free | grep Mem | awk '{print \$2}'); pct=\$(echo \"scale=1; \$used * 100 / \$total\" | bc); echo \"Memory usage: \${pct}%\"; if (( \$(echo \"\$pct > 90\" | bc -l) )); then exit 2; elif (( \$(echo \"\$pct > 80\" | bc -l) )); then exit 1; else exit 0; fi"
     check_interval          2
     retry_interval          1
 }
@@ -77,7 +77,7 @@ define service {
     use                     generic-service
     host_name               {{ axon_backend_host }}
     service_description     CPU Load
-    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "load=\$(uptime | awk -F'load average:' '{print \$2}' | awk '{print \$1}' | sed 's/,//'); if (( \$(echo \"\$load > 4\" | bc -l) )); then exit 2; elif (( \$(echo \"\$load > 2\" | bc -l) )); then exit 1; else echo \"Load average: \$load\"; exit 0; fi"
+    check_command           check_by_ssh!-H {{ axon_backend_address }} -l ubuntu -C "load=\$(uptime | awk -F'load average:' '{print \$2}' | awk '{print \$1}' | sed 's/,//'); echo \"Load average: \$load\"; if (( \$(echo \"\$load > 4\" | bc -l) )); then exit 2; elif (( \$(echo \"\$load > 2\" | bc -l) )); then exit 1; else exit 0; fi"
     check_interval          2
     retry_interval          1
 }
