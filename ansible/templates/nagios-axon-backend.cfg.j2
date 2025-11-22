@@ -27,3 +27,58 @@ define service {
     check_interval          1
     retry_interval          1
 }
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
+    service_description     HTTP Response Time
+    check_command           check_http!-H {{ axon_backend_address }} -p {{ axon_backend_port }} -u {{ axon_backend_health_endpoint }} -w 2000 -c 5000
+    check_interval          2
+    retry_interval          1
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
+    service_description     Disk Space
+    check_command           check_ssh!-l ubuntu -C "df -h / | awk 'NR==2 {print \$5}' | sed 's/%//'"
+    check_interval          5
+    retry_interval          2
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
+    service_description     Memory Usage
+    check_command           check_ssh!-l ubuntu -C "free | awk 'NR==2 {printf \"%d\", (\$3/\$2)*100}'"
+    check_interval          2
+    retry_interval          1
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
+    service_description     CPU Load
+    check_command           check_ssh!-l ubuntu -C "uptime | awk -F'load average:' '{print \$2}' | awk '{print \$1}' | sed 's/,//'"
+    check_interval          2
+    retry_interval          1
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
+    service_description     Gunicorn Process
+    check_command           check_ssh!-l ubuntu -C "pgrep -f gunicorn | wc -l"
+    check_interval          1
+    retry_interval          1
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ axon_backend_host }}
+    service_description     SQLite Database
+    check_command           check_ssh!-l ubuntu -C "test -f /home/ubuntu/axon/backend/db.sqlite3 && echo 'OK' || echo 'MISSING'"
+    check_interval          5
+    retry_interval          2
+}
+

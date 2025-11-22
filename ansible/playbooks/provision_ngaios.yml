@@ -185,6 +185,27 @@
         password: "{{ nagios_admin_password }}"
         crypt_scheme: bcrypt
 
+    - name: Create .ssh directory for nagios user
+      ansible.builtin.file:
+        path: "{{ nagios_home }}/.ssh"
+        state: directory
+        owner: "{{ nagios_user }}"
+        group: "{{ nagios_group }}"
+        mode: '0700'
+
+    - name: Copy SSH key for backend monitoring
+      ansible.builtin.copy:
+        src: ~/Downloads/axon.pem
+        dest: "{{ nagios_home }}/.ssh/id_rsa"
+        owner: "{{ nagios_user }}"
+        group: "{{ nagios_group }}"
+        mode: '0600'
+
+    - name: Add backend host to known_hosts
+      ansible.builtin.shell: |
+        su - {{ nagios_user }} -c "ssh-keyscan -H {{ hostvars[groups['webserver'][0]]['ansible_host'] }} >> {{ nagios_home }}/.ssh/known_hosts 2>/dev/null"
+      ignore_errors: yes
+
     - name: Configure CGI user permissions
       ansible.builtin.lineinfile:
         path: "{{ nagios_home }}/etc/cgi.cfg"
